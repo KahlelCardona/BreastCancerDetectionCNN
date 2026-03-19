@@ -9,6 +9,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import matplotlib.pyplot as plt
+from sklearn.model_selection import StratifiedKFold
 
 class Config:
     DATA_DIR = Path("data/raw")
@@ -22,6 +24,8 @@ class Config:
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     CHECKPOINT_DIR = Path("checkpoints")
     CHECKPOINT_DIR.mkdir(exist_ok=True)
+    PLOT_DIR = Path("plots")
+    PLOT_DIR.mkdir(exist_ok=True)
 
 class MammogramDataset(Dataset):
     def __init__(self, csv_types, transform=None):
@@ -105,28 +109,7 @@ def get_val_transforms():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-def create_dataloaders():
-    # Training datasets (mass + calc)
-    train_datasets = [
-        MammogramDataset(["mass_train"], transform=get_train_transforms()),
-        MammogramDataset(["calc_train"], transform=get_train_transforms())
-    ]
-    train_dataset = torch.utils.data.ConcatDataset(train_datasets)
 
-    # Validation datasets (mass + calc test sets)
-    val_datasets = [
-        MammogramDataset(["mass_test"], transform=get_val_transforms()),
-        MammogramDataset(["calc_test"], transform=get_val_transforms())
-    ]
-    val_dataset = torch.utils.data.ConcatDataset(val_datasets)
-
-    train_loader = DataLoader(train_dataset, batch_size=Config.BATCH_SIZE,
-                              shuffle=True, num_workers=Config.NUM_WORKERS)
-    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE,
-                            shuffle=False, num_workers=Config.NUM_WORKERS)
-
-    print(f"Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
-    return train_loader, val_loader
 def create_model():
     model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)
 
@@ -194,53 +177,174 @@ def validate(model, loader, criterion):
     epoch_f1 = f1_score(all_labels, all_preds, zero_division=0)
     return epoch_loss, epoch_acc, epoch_prec, epoch_rec, epoch_f1
 
-def train_model(model, train_loader, val_loader, epochs, lr):
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, factor=0.1)
+def save_learning_curve(train_values, val_values, ylabel, filename):
 
-    best_val_loss = float('inf')
+    plt.figure(figsize=(8, 6))
 
-    for epoch in range(epochs):
-        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer)
-        val_loss, val_acc, val_prec, val_rec, val_f1 = validate(model, val_loader, criterion)
+    plt.plot(train_values, label="Train")
+    plt.plot(val_values, label="Validation")
 
-        scheduler.step(val_loss)
+    plt.xlabel("Epoch")
+    plt.ylabel(ylabel)
+    plt.title(f"{ylabel} Learning Curve")
+    plt.legend()
 
-        print(f"Epoch {epoch+1}/{epochs}")
-        print(f"  Train Loss: {train_loss:.4f} Acc: {train_acc:.4f}")
-        print(f"  Val Loss: {val_loss:.4f} Acc: {val_acc:.4f} Prec: {val_prec:.4f} Rec: {val_rec:.4f} F1: {val_f1:.4f}")
+    plt.savefig(Config.PLOT_DIR / filename)
 
-        # Save best model
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            torch.save(model.state_dict(), Config.CHECKPOINT_DIR / "best_model.pth")
-            print("  --> Checkpoint saved (best validation loss)")
+    plt.close()
 
-    print("Training finished.")
-    # Load best model for final evaluation
-    model.load_state_dict(torch.load(Config.CHECKPOINT_DIR / "best_model.pth"))
-    return model
+def create_full_dataset():
+
+    datasets = [
+        MammogramDataset(["mass_train"], transform=get_train_transforms()),
+        MammogramDataset(["calc_train"], transform=get_train_transforms())
+    ]
+
+    full_dataset = torch.utils.data.ConcatDataset(datasets)
+
+    labels = []
+
+    for dataset in datasets:
+        labels.extend([label for _, label in dataset.samples])
+
+    return full_dataset, np.array(labels)
+
+
+def train_kfold():
+
+    full_dataset, labels = create_full_dataset()
+
+    skf = StratifiedKFold(
+        n_splits=5,
+        shuffle=True,
+        random_state=42
+    )
+
+    fold_results = []
+
+    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels)):
+
+        print(f"\n========== Fold {fold+1}/5 ==========")
+
+        train_subset = torch.utils.data.Subset(full_dataset, train_idx)
+        val_subset = torch.utils.data.Subset(full_dataset, val_idx)
+        
+        # Compute class weights for the training set
+        train_labels = labels[train_idx]
+
+        class_counts = np.bincount(train_labels)
+
+        class_weights = 1.0 / class_counts
+
+        class_weights = class_weights / class_weights.sum()
+
+        class_weights = torch.tensor(
+            class_weights,
+            dtype=torch.float32
+        ).to(Config.DEVICE)
+
+        train_loader = DataLoader(
+            train_subset,
+            batch_size=Config.BATCH_SIZE,
+            shuffle=True,
+            num_workers=Config.NUM_WORKERS
+        )
+
+        val_loader = DataLoader(
+            val_subset,
+            batch_size=Config.BATCH_SIZE,
+            shuffle=False,
+            num_workers=Config.NUM_WORKERS
+        )
+
+        model = create_model()
+
+        criterion = nn.CrossEntropyLoss()
+
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=Config.LEARNING_RATE
+        )
+
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            patience=3,
+            factor=0.1
+        )
+
+        best_val_loss = float('inf')
+
+        train_losses = []
+        val_losses = []
+        train_accs = []
+        val_accs = []
+        for epoch in range(Config.NUM_EPOCHS):
+
+            train_loss, train_acc = train_one_epoch(
+                model,
+                train_loader,
+                criterion,
+                optimizer
+            )
+
+            val_loss, val_acc, val_prec, val_rec, val_f1 = validate(
+                model,
+                val_loader,
+                criterion
+            )
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+            train_accs.append(train_acc)
+            val_accs.append(val_acc)
+
+            scheduler.step(val_loss)
+
+            print(f"Fold {fold+1} Epoch {epoch+1}/{Config.NUM_EPOCHS}")
+            print(f"Train Loss: {train_loss:.4f} Acc: {train_acc:.4f}")
+            print(
+                f"Val Loss: {val_loss:.4f} "
+                f"Acc: {val_acc:.4f} "
+                f"Prec: {val_prec:.4f} "
+                f"Rec: {val_rec:.4f} "
+                f"F1: {val_f1:.4f}"
+            )
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+
+                torch.save(
+                    model.state_dict(),
+                    Config.CHECKPOINT_DIR / f"best_model_fold_{fold+1}.pth"
+                )
+        save_learning_curve(
+            train_losses,
+            val_losses,
+            "Loss",
+            f"fold_{fold+1}_loss.png"
+        )
+
+        save_learning_curve(
+            train_accs,
+            val_accs,
+            "Accuracy",
+            f"fold_{fold+1}_accuracy.png"
+        )
+
+        fold_results.append(val_acc)
+        
+    print("\n========== Final Cross Validation ==========")
+    print(f"Mean Accuracy: {np.mean(fold_results):.4f}")
+    print(f"Std Accuracy : {np.std(fold_results):.4f}")
+
 if __name__ == "__main__":
-    print("PyTorch EfficientNet Benign/Malignant Classification")
+    print("PyTorch EfficientNet 5-Fold Cross Validation")
     print(f"Device: {Config.DEVICE}")
 
-    # Create data loaders
-    train_loader, val_loader = create_dataloaders()
-
+    train_kfold()
     # Build model
     model = create_model()
     print("Model created. Trainable parameters:")
     for name, param in model.named_parameters():
         if param.requires_grad:
             print(f"  {name}")
-
-    # Train
-    model = train_model(model, train_loader, val_loader,
-                        epochs=Config.NUM_EPOCHS, lr=Config.LEARNING_RATE)
-
-    # Final evaluation on validation set
-    criterion = nn.CrossEntropyLoss()
-    val_loss, val_acc, val_prec, val_rec, val_f1 = validate(model, val_loader, criterion)
-    print("\nFinal Validation Results:")
-    print(f"Loss: {val_loss:.4f}, Acc: {val_acc:.4f}, Prec: {val_prec:.4f}, Rec: {val_rec:.4f}, F1: {val_f1:.4f}")
