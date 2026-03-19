@@ -25,16 +25,15 @@ class Config:
 
 class MammogramDataset(Dataset):
     def __init__(self, csv_types, transform=None):
-        """
-        csv_types: list of CSV base names, e.g. ["mass_train", "calc_train"]
-        """
+    # list of csv_types: ["mass_train", "mass_test", "calc_train", "calc_test"]
         self.transform = transform
         self.samples = []
 
-       
+       #scan image directory once
         all_images = list(Config.JPEG_DIR.rglob("*.jpg"))
         print(f" Found {len(all_images)} total JPG files")
 
+        #process each csv file 
         for csv_type in csv_types:
             csv_path = self._get_csv_path(csv_type)
             if not csv_path.exists():
@@ -48,14 +47,14 @@ class MammogramDataset(Dataset):
 
             for idx, row in df.iterrows():
                 pathology = row["pathology"].strip().lower()
-                # Map to binary label: assume benign if contains "benign", else malignant
+                # Map to binary benign if contains "benign", else malignant
                 label = 0 if "benign" in pathology else 1
 
                 # Try to find the corresponding image
                 img_path = self._find_image_path(row, all_images)
                 if img_path is not None:
                     self.samples.append((img_path, label))
-
+    
         print(f" Loaded {len(self.samples)} labelled samples from {csv_types}")
 
     def _get_csv_path(self, csv_type):
@@ -223,7 +222,7 @@ def train_model(model, train_loader, val_loader, epochs, lr):
     model.load_state_dict(torch.load(Config.CHECKPOINT_DIR / "best_model.pth"))
     return model
 if __name__ == "__main__":
-    print("PyTorch EfficientNet – Benign/Malignant Classification")
+    print("PyTorch EfficientNet Benign/Malignant Classification")
     print(f"Device: {Config.DEVICE}")
 
     # Create data loaders
