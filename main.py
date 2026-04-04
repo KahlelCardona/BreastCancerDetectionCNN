@@ -31,8 +31,10 @@ class Config:
 
 class MammogramRawDataset(Dataset):
     def __init__(self, csv_types):
-
         self.samples = []
+        self.num_benign = 0
+        self.num_malignant = 0
+
         all_images = list(Config.JPEG_DIR.rglob("*.jpg"))
         print(f"Found {len(all_images)} total JPG files")
 
@@ -43,16 +45,23 @@ class MammogramRawDataset(Dataset):
                 continue
 
             df = pd.read_csv(csv_path)
-            df = df.dropna(subset=["pathology"])   # keep only rows with pathology
+            df = df.dropna(subset=["pathology"])
+
             for _, row in df.iterrows():
                 pathology = row["pathology"].strip().lower()
-                label = 0 if "benign" in pathology else 1   # 0=benign, 1=malignant
+                label = 0 if "benign" in pathology else 1
+                if label == 0:
+                    self.num_benign += 1
+                else:
+                    self.num_malignant += 1
 
                 img_path = self._find_image_path(row, all_images)
                 if img_path is not None:
                     self.samples.append((img_path, label))
 
         print(f"Loaded {len(self.samples)} labelled samples from {csv_types}")
+        print(f"  - Benign: {self.num_benign}")
+        print(f"  - Malignant: {self.num_malignant}")
 
     def _get_csv_path(self, csv_type):
         csv_files = {
@@ -201,11 +210,18 @@ def save_learning_curve(train_values, val_values, ylabel, filename):
 
 
 def train_kfold():
+    # Create raw dataset 
     raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
     labels = [label for _, label in raw_dataset.samples]
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    fold_results = []
+
+    # Store metrics for each fold
+    all_fold_val_losses = []   # list of lists, one per fold
+    all_fold_val_accs   = []
+    all_fold_val_f1s     = []
+
+    fold_results = []  # final validation accuracy per fold (last epoch)
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels)):
         print(f"\n========== Fold {fold+1}/5 ==========")
@@ -228,25 +244,22 @@ def train_kfold():
         val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE,
                                 shuffle=False, num_workers=Config.NUM_WORKERS)
 
-        model = create_model()  
+        model = create_model()
         criterion = nn.CrossEntropyLoss()
 
-
-
-        # unfreeze the last two  blocks gradually
+        # Unfreezing schedule: epoch
         unfreeze_schedule = {
-            3: [7],        # unfreeze last  block at epoch 3
-            8: [6, 7]      # unfreeze second‑last and last at epoch 8
+            3: [7],        # last MBConv block
+            8: [6, 7]      # second‑last and last
         }
 
         def get_optimizer():
             params = []
-            # Classifier: high learning rate
             params.append({'params': model.classifier.parameters(), 'lr': 1e-3, 'weight_decay': Config.WEIGHT_DECAY})
             for name, param in model.named_parameters():
                 if param.requires_grad and 'classifier' not in name:
                     params.append({'params': param, 'lr': 1e-4, 'weight_decay': Config.WEIGHT_DECAY})
-            return optim.AdamW(params, lr=1e-5) 
+            return optim.AdamW(params, lr=1e-5)
 
         optimizer = get_optimizer()
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5)
@@ -254,14 +267,15 @@ def train_kfold():
         best_val_loss = float('inf')
         train_losses, val_losses = [], []
         train_accs, val_accs = [], []
+        val_f1s = []   # store F1 per epoch for this fold
 
         for epoch in range(Config.NUM_EPOCHS):
             # Unfreeze blocks according to schedule
             if epoch in unfreeze_schedule:
-                blocks_to_unfreeze = unfreeze_schedule[epoch]
-                print(f"Unfreezing blocks: {blocks_to_unfreeze}")
-                for block_idx in blocks_to_unfreeze:
-                    for param in model.features[block_idx].parameters():
+                blocks = unfreeze_schedule[epoch]
+                print(f"Unfreezing blocks: {blocks}")
+                for blk in blocks:
+                    for param in model.features[blk].parameters():
                         param.requires_grad = True
                 optimizer = get_optimizer()
                 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5)
@@ -273,6 +287,7 @@ def train_kfold():
             val_losses.append(val_loss)
             train_accs.append(train_acc)
             val_accs.append(val_acc)
+            val_f1s.append(val_f1)
 
             scheduler.step(val_loss)
 
@@ -284,16 +299,67 @@ def train_kfold():
                 best_val_loss = val_loss
                 torch.save(model.state_dict(), Config.CHECKPOINT_DIR / f"best_model_fold_{fold+1}.pth")
 
+        # Store this fold's metrics for later averaging
+        all_fold_val_losses.append(val_losses)
+        all_fold_val_accs.append(val_accs)
+        all_fold_val_f1s.append(val_f1s)
+
+        # Save per‑fold learning curves
         save_learning_curve(train_losses, val_losses, "Loss", f"fold_{fold+1}_loss.png")
         save_learning_curve(train_accs, val_accs, "Accuracy", f"fold_{fold+1}_accuracy.png")
+        save_learning_curve(val_f1s, val_f1s, "F1 Score", f"fold_{fold+1}_f1.png")  # train vs val not needed, just val
 
-        fold_results.append(val_accs[-1])
+        fold_results.append(val_accs[-1])   # final epoch validation accuracy
 
+    # ------------------- Aggregate across folds -------------------
+    # Convert to numpy arrays for easy averaging (epochs x folds)
+    # All folds have same number of epochs (NUM_EPOCHS)
+    val_losses_array = np.array(all_fold_val_losses)  # shape: (folds, epochs)
+    val_accs_array   = np.array(all_fold_val_accs)
+    val_f1s_array    = np.array(all_fold_val_f1s)
+
+    mean_val_loss = np.mean(val_losses_array, axis=0)
+    mean_val_acc  = np.mean(val_accs_array, axis=0)
+    mean_val_f1   = np.mean(val_f1s_array, axis=0)
+
+    # Plot mean curves
+    epochs_range = range(1, Config.NUM_EPOCHS+1)
+    plt.figure(figsize=(8,6))
+    plt.plot(epochs_range, mean_val_loss, label="Mean Validation Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Mean Validation Loss Across 5 Folds")
+    plt.legend()
+    plt.savefig(Config.PLOT_DIR / "mean_val_loss.png")
+    plt.close()
+
+    plt.figure(figsize=(8,6))
+    plt.plot(epochs_range, mean_val_acc, label="Mean Validation Accuracy")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.title("Mean Validation Accuracy Across 5 Folds")
+    plt.legend()
+    plt.savefig(Config.PLOT_DIR / "mean_val_accuracy.png")
+    plt.close()
+
+    plt.figure(figsize=(8,6))
+    plt.plot(epochs_range, mean_val_f1, label="Mean Validation F1 Score")
+    plt.xlabel("Epoch")
+    plt.ylabel("F1 Score")
+    plt.title("Mean Validation F1 Score Across 5 Folds")
+    plt.legend()
+    plt.savefig(Config.PLOT_DIR / "mean_val_f1.png")
+    plt.close()
+
+    # Final cross‑validation summary
     print("\n========== Final Cross Validation ==========")
-    print(f"Mean Accuracy: {np.mean(fold_results):.4f}")
-    print(f"Std Accuracy : {np.std(fold_results):.4f}")
+    print(f"Mean Accuracy (last epoch): {np.mean(fold_results):.4f} ± {np.std(fold_results):.4f}")
+    print(f"Mean Validation Loss (last epoch): {np.mean([losses[-1] for losses in all_fold_val_losses]):.4f}")
+    print(f"Mean F1 Score (last epoch): {np.mean([f1s[-1] for f1s in all_fold_val_f1s]):.4f}")
+    print("\nAveraged learning curves saved in 'plots/' directory.")
+
 
 if __name__ == "__main__":
-    print("PyTorch EfficientNet 5-Fold Cross Validation (fixed)")
+    print("PyTorch EfficientNet 5-Fold Cross Validation")
     print(f"Device: {Config.DEVICE}")
     train_kfold()
