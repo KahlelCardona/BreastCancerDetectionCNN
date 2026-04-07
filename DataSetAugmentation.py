@@ -13,9 +13,9 @@ class Config:
     JPEG_DIR = DATA_DIR / "jpeg"
     CSV_DIR = DATA_DIR / "csv"
     BATCH_SIZE = 16
-    NUM_WORKERS = 0
+    NUM_WORKERS = 8
     IMAGE_SIZE = 224
-    NUM_EPOCHS = 25
+    NUM_EPOCHS = 20
     LEARNING_RATE = 1e-4
     WEIGHT_DECAY = 1e-5           # added to reduce overfitting
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
