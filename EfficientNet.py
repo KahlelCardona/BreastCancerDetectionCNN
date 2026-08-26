@@ -15,13 +15,17 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import WeightedRandomSampler
 
 from DataSetAugmentation import MammogramRawDataset, TransformDataset, Config, get_train_transforms, get_val_transforms
+from losses import mixup_data, build_hybrid_criterion
+from evaluate import evaluate_model
 
 class EfficientNetConfig:
     MODEL_NAME = "efficientnet"    # efficientnet_b0
     BATCH_SIZE = 16
-    NUM_EPOCHS = 25
+    NUM_EPOCHS = 35
     BASE_LR = 1e-4                 # for unfrozen backbone blocks
     CLASSIFIER_LR = 1e-3           # higher LR for the classifier head
+    NEW_UNFREEZE_LR = 1e-4         # blocks just unfrozen at the latest schedule epoch
+    OLD_UNFREEZE_LR = 2e-5         # blocks unfrozen at an earlier schedule epoch
     WEIGHT_DECAY = 1e-5
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     CHECKPOINT_DIR = Path("checkpoints_efficientnet")
@@ -31,8 +35,24 @@ class EfficientNetConfig:
     DATA_DIR = Path("data/raw")
     JPEG_DIR = DATA_DIR / "jpeg"
     CSV_DIR = DATA_DIR / "csv"
- 
-    UNFREEZE_SCHEDULE = {4: [7], 10: [6, 7]}
+
+    # Regularisation (mirrors ResNet.py's CFG, same dataset/problem)
+    GRAD_CLIP_NORM      = 1.5
+    LABEL_SMOOTHING     = 0.08
+    FOCAL_GAMMA         = 1.5
+    FOCAL_WEIGHT        = 0.4
+    MIXUP_ALPHA         = 0.2
+    EARLY_STOP_PATIENCE = 10
+    MIN_EPOCH_FOR_BEST  = 6        # 0-indexed epoch loop: skip checkpointing before this epoch
+
+    # Cosine annealing with warm restarts, rebuilt on each unfreeze event
+    T_0      = 8
+    T_MULT   = 1
+    ETA_MIN  = 1e-7
+
+    TTA_ENABLED = True
+
+    UNFREEZE_SCHEDULE = {4: [8, 7], 10: [6], 16: [5]}
 
 # -------------------- Model creation --------------------
 def create_efficientnet():
@@ -53,24 +73,28 @@ def create_efficientnet():
 
 
 # -------------------- Training and validation --------------------
-def train_one_epoch(model, loader, criterion, optimizer):
+def train_one_epoch(model, loader, criterion, optimizer, mixup_alpha):
     model.train()
     running_loss = 0.0
-    all_preds, all_labels = [], []
     for images, labels in loader:
         images, labels = images.to(EfficientNetConfig.DEVICE), labels.to(EfficientNetConfig.DEVICE)
         optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
+
+        if mixup_alpha > 0:
+            mixed_images, soft_labels = mixup_data(images, labels, mixup_alpha)
+            outputs = model(mixed_images)
+            log_probs = nn.functional.log_softmax(outputs, dim=1)
+            loss = -(soft_labels * log_probs).sum(dim=1).mean()
+        else:
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
         loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), EfficientNetConfig.GRAD_CLIP_NORM)
         optimizer.step()
         running_loss += loss.item() * images.size(0)
-        _, preds = torch.max(outputs, 1)
-        all_preds.extend(preds.cpu().numpy())
-        all_labels.extend(labels.cpu().numpy())
     epoch_loss = running_loss / len(loader.dataset)
-    epoch_acc = accuracy_score(all_labels, all_preds)
-    return epoch_loss, epoch_acc
+    return epoch_loss
 
 def validate(model, loader):
     model.eval()
@@ -92,6 +116,58 @@ def validate(model, loader):
     epoch_rec = recall_score(all_labels, all_preds, zero_division=0)
     epoch_f1 = f1_score(all_labels, all_preds, zero_division=0)
     return epoch_loss, epoch_acc, epoch_prec, epoch_rec, epoch_f1
+
+
+# -------------------- Optimizer / scheduler with differentiated LR by unfreeze recency --------------------
+def get_optimizer(model, current_epoch):
+    fired  = [e for e in EfficientNetConfig.UNFREEZE_SCHEDULE if e <= current_epoch]
+    latest = max(fired) if fired else 0
+
+    param_groups = [
+        {'params': model.classifier.parameters(), 'lr': EfficientNetConfig.CLASSIFIER_LR,
+         'weight_decay': EfficientNetConfig.WEIGHT_DECAY}
+    ]
+
+    if latest > 0:
+        unlock_epoch = {}
+        for ep, blocks in EfficientNetConfig.UNFREEZE_SCHEDULE.items():
+            for blk in blocks:
+                unlock_epoch[f"features.{blk}."] = ep
+
+        new_params, old_params = [], []
+        for name, param in model.named_parameters():
+            if not param.requires_grad or 'classifier' in name:
+                continue
+            matched = None
+            for prefix, ep in unlock_epoch.items():
+                if name.startswith(prefix):
+                    matched = ep
+                    break
+            if matched is None:
+                continue
+            if matched == latest:
+                new_params.append(param)
+            else:
+                old_params.append(param)
+
+        if new_params:
+            param_groups.append({'params': new_params, 'lr': EfficientNetConfig.NEW_UNFREEZE_LR,
+                                  'weight_decay': EfficientNetConfig.WEIGHT_DECAY})
+        if old_params:
+            param_groups.append({'params': old_params, 'lr': EfficientNetConfig.OLD_UNFREEZE_LR,
+                                  'weight_decay': EfficientNetConfig.WEIGHT_DECAY})
+
+    return optim.AdamW(param_groups)
+
+
+def get_scheduler(optimizer, epoch_offset=0):
+    return optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer,
+        T_0=EfficientNetConfig.T_0,
+        T_mult=EfficientNetConfig.T_MULT,
+        eta_min=EfficientNetConfig.ETA_MIN,
+        last_epoch=epoch_offset - 1,
+    )
 
 
 # -------------------- 5-Fold Cross-Validation for EfficientNet --------------------
@@ -129,29 +205,19 @@ def train_efficientnet_kfold():
             if 'classifier' not in name:
                 param.requires_grad = False
 
-        # Class-weighted loss
+        # Class-weighted hybrid CE + Focal loss (mirrors ResNet.py)
         train_labels = np.array(labels)[train_idx]
         class_weights = compute_class_weight('balanced', classes=np.array([0,1]), y=train_labels)
         class_weights = torch.tensor(class_weights, dtype=torch.float).to(EfficientNetConfig.DEVICE)
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        criterion = build_hybrid_criterion(class_weights, EfficientNetConfig.LABEL_SMOOTHING,
+                                            EfficientNetConfig.FOCAL_GAMMA, EfficientNetConfig.FOCAL_WEIGHT)
 
-        # Optimizer with differential learning rates
-        def get_optimizer():
-            params = []
-            # Classifier with high LR
-            params.append({'params': model.classifier.parameters(), 'lr': EfficientNetConfig.CLASSIFIER_LR,
-                           'weight_decay': EfficientNetConfig.WEIGHT_DECAY})
-            # Any other trainable parameters (unfrozen blocks) with base LR
-            for name, param in model.named_parameters():
-                if param.requires_grad and 'classifier' not in name:
-                    params.append({'params': param, 'lr': EfficientNetConfig.BASE_LR,
-                                   'weight_decay': EfficientNetConfig.WEIGHT_DECAY})
-            return optim.AdamW(params, lr=EfficientNetConfig.BASE_LR)
-
-        optimizer = get_optimizer()
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=4, factor=0.5)
+        optimizer = get_optimizer(model, 0)
+        scheduler = get_scheduler(optimizer, epoch_offset=0)
 
         best_val_loss = float('inf')
+        best_val_f1   = 0.0
+        patience      = 0
         fold_val_losses, fold_val_accs, fold_val_f1s = [], [], []
 
         for epoch in range(EfficientNetConfig.NUM_EPOCHS):
@@ -162,27 +228,56 @@ def train_efficientnet_kfold():
                 for blk in blocks:
                     for param in model.features[blk].parameters():
                         param.requires_grad = True
-                optimizer = get_optimizer()
-                scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=4, factor=0.5)
+                optimizer = get_optimizer(model, epoch)
+                scheduler = get_scheduler(optimizer, epoch_offset=0)
+                patience  = 0
 
-            train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer)
+            train_loss = train_one_epoch(model, train_loader, criterion, optimizer,
+                                         EfficientNetConfig.MIXUP_ALPHA)
             val_loss, val_acc, val_prec, val_rec, val_f1 = validate(model, val_loader)
-            scheduler.step(val_loss)
+            scheduler.step()
 
             fold_val_losses.append(val_loss)
             fold_val_accs.append(val_acc)
             fold_val_f1s.append(val_f1)
 
-            print(f"  Epoch {epoch+1}: Train Loss {train_loss:.4f} Acc {train_acc:.4f} | "
+            print(f"  Epoch {epoch+1}: Train Loss {train_loss:.4f} | "
                   f"Val Loss {val_loss:.4f} Acc {val_acc:.4f} Prec {val_prec:.4f} Rec {val_rec:.4f} F1 {val_f1:.4f}")
 
-            if val_loss < best_val_loss:
+            # 0-indexed epoch loop: MIN_EPOCH_FOR_BEST=6 means "epoch 6" in the 1-indexed
+            # print above, i.e. epoch >= 5 here.
+            if val_loss < best_val_loss and epoch >= EfficientNetConfig.MIN_EPOCH_FOR_BEST - 1:
                 best_val_loss = val_loss
+                best_val_f1   = val_f1
+                patience      = 0
                 torch.save(model.state_dict(), EfficientNetConfig.CHECKPOINT_DIR / f"best_model_fold_{fold+1}.pth")
+                print("  --> saved best model")
+            else:
+                patience += 1
+
+            if patience >= EfficientNetConfig.EARLY_STOP_PATIENCE:
+                print(f"  Early stop at epoch {epoch+1} (best F1 {best_val_f1:.4f})")
+                break
+
+        # Early stopping can end a fold before NUM_EPOCHS; pad with the last value so every
+        # fold's per-epoch history is the same length for the cross-fold mean/std plots below.
+        while len(fold_val_losses) < EfficientNetConfig.NUM_EPOCHS:
+            fold_val_losses.append(fold_val_losses[-1])
+            fold_val_accs.append(fold_val_accs[-1])
+            fold_val_f1s.append(fold_val_f1s[-1])
 
         all_val_losses.append(fold_val_losses)
         all_val_accs.append(fold_val_accs)
         all_val_f1s.append(fold_val_f1s)
+
+        # ---- Re-evaluate best checkpoint with TTA (reuses evaluate.py's evaluate_model) ----
+        model.load_state_dict(torch.load(
+            EfficientNetConfig.CHECKPOINT_DIR / f"best_model_fold_{fold+1}.pth",
+            map_location=EfficientNetConfig.DEVICE,
+        ))
+        tta_metrics = evaluate_model(model, val_loader, EfficientNetConfig.DEVICE, use_tta=True)
+        print(f"  Fold {fold+1} best-val F1  (no TTA): {best_val_f1:.4f}")
+        print(f"  Fold {fold+1} best-val F1 (with TTA): {tta_metrics['f1']:.4f}\n")
 
         # Plot per-fold metrics
         epochs_range = range(1, EfficientNetConfig.NUM_EPOCHS+1)

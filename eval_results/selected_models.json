@@ -1,0 +1,4 @@
+{
+  "resnet": {"checkpoint": "checkpoints_resnet/fold1_best.pth", "accuracy": 0.6776},
+  "efficientnet": {"checkpoint": "checkpoints_efficientnet/best_model_fold_2.pth", "accuracy": 0.6705}
+}

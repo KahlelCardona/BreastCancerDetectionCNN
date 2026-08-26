@@ -1,0 +1,136 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #21262d;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --accent3: #f78166;
+  --text-hi: #e6edf3;
+  --text-mid: #8b949e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text-hi);
+  font-family: "Courier New", monospace;
+  margin: 0;
+  padding: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+}
+
+.accent-bar {
+  width: 4px;
+  align-self: stretch;
+  background: var(--accent);
+  margin-right: 16px;
+}
+
+.header h1 {
+  font-size: 16px;
+  margin: 0 16px 0 0;
+}
+
+.subtitle {
+  color: var(--text-mid);
+  font-size: 12px;
+}
+
+.content {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+
+.upload-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.upload-form input[type="file"] {
+  color: var(--text-hi);
+}
+
+.upload-form button {
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  font-family: inherit;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.error {
+  margin-top: 16px;
+  color: var(--accent3);
+  border: 1px solid var(--accent3);
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  text-align: center;
+}
+
+.card.final {
+  border-color: var(--accent);
+}
+
+.card h2 {
+  font-size: 13px;
+  color: var(--text-mid);
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+}
+
+.label {
+  font-size: 22px;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+}
+
+.label-benign { color: var(--accent2); }
+.label-malignant { color: var(--accent3); }
+
+.confidence {
+  margin: 0;
+  color: var(--text-hi);
+}
+
+.accuracy {
+  margin: 8px 0 0 0;
+  color: var(--text-mid);
+  font-size: 11px;
+}
+
+.disagreement-note {
+  margin-top: 16px;
+  color: var(--accent3);
+  font-size: 13px;
+}

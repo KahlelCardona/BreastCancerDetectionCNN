@@ -1,0 +1,8 @@
+torch
+torchvision
+flask
+pandas
+numpy
+scikit-learn
+pillow
+matplotlib

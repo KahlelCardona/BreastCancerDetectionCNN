@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mammogram Classification</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="header">
+    <div class="accent-bar"></div>
+    <h1>MAMMOGRAM CLASSIFICATION</h1>
+    <span class="subtitle">ResNet &middot; EfficientNet &middot; blended comparison</span>
+  </div>
+
+  <div class="content">
+    <form method="post" enctype="multipart/form-data" class="upload-form">
+      <input type="file" name="mammogram" accept=".jpg,.jpeg,.png">
+      <button type="submit">Analyze</button>
+    </form>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+      <div class="results">
+        <div class="card">
+          <h2>ResNet</h2>
+          <p class="label label-{{ result.resnet.label|lower }}">{{ result.resnet.label }}</p>
+          <p class="confidence">{{ "%.1f"|format(result.resnet.confidence * 100) }}% confidence</p>
+          <p class="accuracy">model test accuracy: {{ "%.1f"|format(result.resnet.reported_accuracy * 100) }}%</p>
+        </div>
+
+        <div class="card">
+          <h2>EfficientNet</h2>
+          <p class="label label-{{ result.efficientnet.label|lower }}">{{ result.efficientnet.label }}</p>
+          <p class="confidence">{{ "%.1f"|format(result.efficientnet.confidence * 100) }}% confidence</p>
+          <p class="accuracy">model test accuracy: {{ "%.1f"|format(result.efficientnet.reported_accuracy * 100) }}%</p>
+        </div>
+
+        <div class="card final">
+          <h2>Final Answer</h2>
+          <p class="label label-{{ result.final.label|lower }}">{{ result.final.label }}</p>
+          <p class="confidence">{{ "%.1f"|format(result.final.confidence * 100) }}% confidence</p>
+        </div>
+      </div>
+
+      {% if not result.final.models_agreed %}
+        <div class="disagreement-note">Note: the two models disagreed on this image.</div>
+      {% endif %}
+    {% endif %}
+  </div>
+</body>
+</html>
