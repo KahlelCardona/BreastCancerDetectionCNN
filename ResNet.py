@@ -4,7 +4,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from torchvision import models
 import torchvision.transforms.functional as TF
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.utils.class_weight import compute_class_weight
 import numpy as np
@@ -14,6 +14,8 @@ from DataSetAugmentation import (
     MammogramRawDataset, TransformDataset,
     get_train_transforms, get_val_transforms,
 )
+from evaluate import find_best_threshold
+import training_log
 
 # ------------------------------------------------------------------
 #  Configuration
@@ -401,7 +403,7 @@ def validate(model, loader, use_tta=False):
 WARMUP_EPOCHS_AFTER_UNFREEZE = 2   # ramp freshly-unfrozen LR over this many epochs
 
 
-def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels):
+def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_path):
     train_ds = TransformDataset(Subset(raw_dataset, train_idx), get_train_transforms())
     val_ds   = TransformDataset(Subset(raw_dataset, val_idx),   get_val_transforms())
 
@@ -479,6 +481,9 @@ def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels):
               f"Val Loss {val_loss:.4f} Acc {val_acc:.4f} "
               f"Prec {val_prec:.4f} Rec {val_rec:.4f} F1 {val_f1:.4f}")
 
+        training_log.log_epoch(log_wb, log_path, fold + 1, epoch,
+                                train_loss, val_loss, val_acc, val_prec, val_rec, val_f1)
+
         # ----------------------------------------------------------------
         # Checkpoint on val loss, deferred until after head warmup noise
         # ----------------------------------------------------------------
@@ -504,9 +509,13 @@ def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels):
                    map_location=CFG.DEVICE)
     )
     _, tta_acc, tta_prec, tta_rec, tta_f1 = validate(model, val_loader, use_tta=True)
+    best_threshold, best_threshold_f1 = find_best_threshold(model, val_loader, CFG.DEVICE, use_tta=True)
     print(f"  Fold {fold+1} best-val F1  (no TTA): {best_f1:.4f}")
-    print(f"  Fold {fold+1} best-val F1 (with TTA): {tta_f1:.4f}\n")
-    return best_f1, tta_f1
+    print(f"  Fold {fold+1} best-val F1 (with TTA): {tta_f1:.4f}")
+    print(f"  Fold {fold+1} best threshold: {best_threshold:.2f} "
+          f"(val F1 {best_threshold_f1:.4f} vs default-0.5 F1 {tta_f1:.4f})\n")
+    training_log.log_fold_summary(log_wb, log_path, fold + 1, best_f1, tta_f1, best_threshold)
+    return best_f1, tta_f1, best_threshold
 
 
 # ------------------------------------------------------------------
@@ -516,20 +525,24 @@ def main():
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
 
-    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
+    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"], include_cropped_patches=True)
     labels      = [lbl for _, lbl in raw_dataset.samples]
-    skf         = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    skf         = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 
-    fold_f1, fold_tta_f1 = [], []
+    log_wb   = training_log.create_workbook("resnet")
+    log_path = training_log.LOG_DIR / "resnet_training_log.xlsx"
+
+    fold_f1, fold_tta_f1, fold_threshold = [], [], []
     for fold, (train_idx, val_idx) in enumerate(
-        skf.split(np.zeros(len(labels)), labels)
+        skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.groups)
     ):
         print(f"\n{'='*50}")
         print(f"  Fold {fold+1} / 5")
         print(f"{'='*50}")
-        f1, tta_f1 = train_fold(fold, raw_dataset, train_idx, val_idx, labels)
+        f1, tta_f1, threshold = train_fold(fold, raw_dataset, train_idx, val_idx, labels, log_wb, log_path)
         fold_f1.append(f1)
         fold_tta_f1.append(tta_f1)
+        fold_threshold.append(threshold)
 
     fold_f1     = np.array(fold_f1)
     fold_tta_f1 = np.array(fold_tta_f1)
@@ -539,6 +552,7 @@ def main():
     print(f"{'='*50}")
     print(f"  Val F1 no-TTA  (mean ± std): {fold_f1.mean():.4f} ± {fold_f1.std():.4f}")
     print(f"  Val F1 TTA     (mean ± std): {fold_tta_f1.mean():.4f} ± {fold_tta_f1.std():.4f}")
+    print(f"  Per-fold thresholds: {[f'{t:.2f}' for t in fold_threshold]}")
     print(f"{'='*50}")
 
 

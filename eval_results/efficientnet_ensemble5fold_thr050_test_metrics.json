@@ -1,0 +1,17 @@
+{
+  "model": "efficientnet",
+  "checkpoints": [
+    "checkpoints_efficientnet\\best_model_fold_1.pth",
+    "checkpoints_efficientnet\\best_model_fold_2.pth",
+    "checkpoints_efficientnet\\best_model_fold_3.pth",
+    "checkpoints_efficientnet\\best_model_fold_4.pth",
+    "checkpoints_efficientnet\\best_model_fold_5.pth"
+  ],
+  "tta": true,
+  "threshold": 0.5,
+  "n_samples": 704,
+  "accuracy": 0.6761363636363636,
+  "precision": 0.6043478260869565,
+  "recall": 0.5036231884057971,
+  "f1": 0.549407114624506
+}

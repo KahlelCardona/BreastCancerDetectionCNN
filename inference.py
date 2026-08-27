@@ -18,34 +18,49 @@ def load_selected_models(device):
     models = {}
     for name in ("resnet", "efficientnet"):
         entry = selected[name]
-        model = load_model(name, entry["checkpoint"], device)
-        models[name] = (model, float(entry["accuracy"]))
+        checkpoint = entry["checkpoint"]
+        if isinstance(checkpoint, list):
+            loaded = [load_model(name, c, device) for c in checkpoint]
+        else:
+            loaded = load_model(name, checkpoint, device)
+        threshold = float(entry.get("threshold", 0.5))
+        models[name] = (loaded, float(entry["accuracy"]), threshold)
     return models
 
 
-def _predict_single(model, image_tensor, device):
+def _predict_single(model_or_models, image_tensor, device, threshold):
+    models = model_or_models if isinstance(model_or_models, list) else [model_or_models]
     imgs = image_tensor.unsqueeze(0).to(device)
     with torch.no_grad():
-        logits = (
-            model(imgs) + model(TF.hflip(imgs)) + model(TF.vflip(imgs))
-        ) / 3.0
-        probs = F.softmax(logits, dim=1)[0]
+        probs_per_model = []
+        for model in models:
+            logits = (
+                model(imgs) + model(TF.hflip(imgs)) + model(TF.vflip(imgs))
+            ) / 3.0
+            probs_per_model.append(F.softmax(logits, dim=1)[0])
+        probs = torch.stack(probs_per_model).mean(dim=0)
 
     malignant_prob = float(probs[1])
-    label = "Malignant" if malignant_prob > 0.5 else "Benign"
+    label = "Malignant" if malignant_prob > threshold else "Benign"
     confidence = malignant_prob if label == "Malignant" else 1.0 - malignant_prob
     return label, malignant_prob, confidence
 
 
 def predict(image, models):
-    device = next(models["resnet"][0].parameters()).device
+    resnet_first = models["resnet"][0]
+    resnet_first_model = resnet_first[0] if isinstance(resnet_first, list) else resnet_first
+    device = next(resnet_first_model.parameters()).device
     image_tensor = get_val_transforms()(image)
 
-    resnet_model, resnet_weight = models["resnet"]
-    efficientnet_model, efficientnet_weight = models["efficientnet"]
+    resnet_models, resnet_weight, resnet_threshold = models["resnet"]
+    efficientnet_models, efficientnet_weight, efficientnet_threshold = models["efficientnet"]
 
-    resnet_label, resnet_prob, resnet_conf = _predict_single(resnet_model, image_tensor, device)
-    eff_label, eff_prob, eff_conf = _predict_single(efficientnet_model, image_tensor, device)
+    resnet_label, resnet_prob, resnet_conf = _predict_single(
+        resnet_models, image_tensor, device, resnet_threshold
+    )
+    eff_label, eff_prob, eff_conf = _predict_single(
+        efficientnet_models, image_tensor, device, efficientnet_threshold
+    )
 
     blended_prob = (
         resnet_prob * resnet_weight + eff_prob * efficientnet_weight

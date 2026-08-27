@@ -10,13 +10,14 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import WeightedRandomSampler
 
 from DataSetAugmentation import MammogramRawDataset, TransformDataset, Config, get_train_transforms, get_val_transforms
 from losses import mixup_data, build_hybrid_criterion
-from evaluate import evaluate_model
+from evaluate import evaluate_model, find_best_threshold
+import training_log
 
 class EfficientNetConfig:
     MODEL_NAME = "efficientnet"    # efficientnet_b0
@@ -179,13 +180,17 @@ def train_efficientnet_kfold():
     EfficientNetConfig.PLOT_DIR.mkdir(exist_ok=True)
     print(f"Using device: {EfficientNetConfig.DEVICE}")
 
-    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
+    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"], include_cropped_patches=True)
     labels = [label for _, label in raw_dataset.samples]
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    skf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+
+    log_wb = training_log.create_workbook("efficientnet")
+    log_path = training_log.LOG_DIR / "efficientnet_training_log.xlsx"
 
     all_val_losses, all_val_accs, all_val_f1s = [], [], []
+    fold_thresholds = []
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels)):
+    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.groups)):
         print(f"\n========== Fold {fold+1}/5 ==========")
 
         train_raw = Subset(raw_dataset, train_idx)
@@ -244,6 +249,9 @@ def train_efficientnet_kfold():
             print(f"  Epoch {epoch+1}: Train Loss {train_loss:.4f} | "
                   f"Val Loss {val_loss:.4f} Acc {val_acc:.4f} Prec {val_prec:.4f} Rec {val_rec:.4f} F1 {val_f1:.4f}")
 
+            training_log.log_epoch(log_wb, log_path, fold + 1, epoch + 1,
+                                    train_loss, val_loss, val_acc, val_prec, val_rec, val_f1)
+
             # 0-indexed epoch loop: MIN_EPOCH_FOR_BEST=6 means "epoch 6" in the 1-indexed
             # print above, i.e. epoch >= 5 here.
             if val_loss < best_val_loss and epoch >= EfficientNetConfig.MIN_EPOCH_FOR_BEST - 1:
@@ -276,8 +284,15 @@ def train_efficientnet_kfold():
             map_location=EfficientNetConfig.DEVICE,
         ))
         tta_metrics = evaluate_model(model, val_loader, EfficientNetConfig.DEVICE, use_tta=True)
+        best_threshold, best_threshold_f1 = find_best_threshold(
+            model, val_loader, EfficientNetConfig.DEVICE, use_tta=True
+        )
+        fold_thresholds.append(best_threshold)
         print(f"  Fold {fold+1} best-val F1  (no TTA): {best_val_f1:.4f}")
-        print(f"  Fold {fold+1} best-val F1 (with TTA): {tta_metrics['f1']:.4f}\n")
+        print(f"  Fold {fold+1} best-val F1 (with TTA): {tta_metrics['f1']:.4f}")
+        print(f"  Fold {fold+1} best threshold: {best_threshold:.2f} "
+              f"(val F1 {best_threshold_f1:.4f} vs default-0.5 F1 {tta_metrics['f1']:.4f})\n")
+        training_log.log_fold_summary(log_wb, log_path, fold + 1, best_val_f1, tta_metrics['f1'], best_threshold)
 
         # Plot per-fold metrics
         epochs_range = range(1, EfficientNetConfig.NUM_EPOCHS+1)
@@ -338,6 +353,7 @@ def train_efficientnet_kfold():
     print(f"Mean Val Loss (last epoch): {mean_val_loss[-1]:.4f} ± {std_val_loss[-1]:.4f}")
     print(f"Mean Val Accuracy: {mean_val_acc[-1]:.4f} ± {np.std(val_accs_array[:,-1]):.4f}")
     print(f"Mean Val F1 Score: {mean_val_f1[-1]:.4f} ± {np.std(val_f1s_array[:,-1]):.4f}")
+    print(f"Per-fold thresholds: {[f'{t:.2f}' for t in fold_thresholds]}")
 
 
 if __name__ == "__main__":

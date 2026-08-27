@@ -1,0 +1,13 @@
+{
+  "model": "resnet",
+  "checkpoints": [
+    "checkpoints_resnet\\fold3_best.pth"
+  ],
+  "tta": true,
+  "threshold": 0.45,
+  "n_samples": 704,
+  "accuracy": 0.6534090909090909,
+  "precision": 0.5379146919431279,
+  "recall": 0.822463768115942,
+  "f1": 0.6504297994269341
+}

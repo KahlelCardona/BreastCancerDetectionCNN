@@ -1,4 +1,4 @@
 {
-  "resnet": {"checkpoint": "checkpoints_resnet/fold1_best.pth", "accuracy": 0.6776},
-  "efficientnet": {"checkpoint": "checkpoints_efficientnet/best_model_fold_2.pth", "accuracy": 0.6705}
+  "resnet": {"checkpoint": "checkpoints_resnet/fold3_best.pth", "accuracy": 0.6534, "threshold": 0.45},
+  "efficientnet": {"checkpoint": ["checkpoints_efficientnet/best_model_fold_1.pth", "checkpoints_efficientnet/best_model_fold_2.pth", "checkpoints_efficientnet/best_model_fold_3.pth", "checkpoints_efficientnet/best_model_fold_4.pth", "checkpoints_efficientnet/best_model_fold_5.pth"], "accuracy": 0.6179, "threshold": 0.302}
 }
