@@ -37,6 +37,7 @@ class MammogramRawDataset(Dataset):
     def __init__(self, csv_types, include_cropped_patches=False):
         self.samples = []
         self.groups = []
+        self.patient_ids = []
         self.num_benign = 0
         self.num_malignant = 0
         num_cropped_patches = 0
@@ -68,12 +69,14 @@ class MammogramRawDataset(Dataset):
 
                 self.samples.append((img_path, label))
                 self.groups.append(group_id)
+                self.patient_ids.append(row["patient_id"])
 
                 if include_cropped_patches:
                     crop_path = self._find_cropped_patch_path(row, all_images)
                     if crop_path is not None:
                         self.samples.append((crop_path, label))
                         self.groups.append(group_id)
+                        self.patient_ids.append(row["patient_id"])
                         num_cropped_patches += 1
 
                 group_id += 1
@@ -170,18 +173,18 @@ def get_train_transforms():
         transforms.RandomErasing(p=0.3, scale=(0.02, 0.15)),
     ])
 
-def get_light_train_transforms():
+def get_light_train_transforms(size=None):
     return transforms.Compose([
-        transforms.Resize((Config.IMAGE_SIZE, Config.IMAGE_SIZE)),
+        transforms.Resize(size or (Config.IMAGE_SIZE, Config.IMAGE_SIZE)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomAffine(degrees=10),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-def get_val_transforms():
+def get_val_transforms(size=None):
     return transforms.Compose([
-        transforms.Resize((Config.IMAGE_SIZE, Config.IMAGE_SIZE)),
+        transforms.Resize(size or (Config.IMAGE_SIZE, Config.IMAGE_SIZE)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])

@@ -12,9 +12,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from DataSetAugmentation import MammogramRawDataset, TransformDataset, get_val_transforms
 
 
-def build_test_dataset():
+def build_test_dataset(size=None):
     raw = MammogramRawDataset(["mass_test", "calc_test"])
-    ds = TransformDataset(raw, get_val_transforms())
+    ds = TransformDataset(raw, get_val_transforms(size))
     return DataLoader(
         ds, batch_size=16, shuffle=False, num_workers=4,
         pin_memory=torch.cuda.is_available(),
@@ -112,12 +112,13 @@ def main():
     parser.add_argument("--tta", action="store_true")
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--image-hw", type=int, nargs=2, default=None, metavar=("H", "W"))
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint_paths = [Path(c) for c in args.checkpoint]
 
-    loader = build_test_dataset()
+    loader = build_test_dataset(tuple(args.image_hw) if args.image_hw else None)
     metrics = evaluate_ensemble(args.model, checkpoint_paths, loader, device, args.tta, args.threshold)
 
     print(

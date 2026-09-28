@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import WeightedRandomSampler
 
@@ -31,9 +31,9 @@ class EfficientNetConfig:
     OLD_UNFREEZE_LR = 2e-5         # blocks unfrozen at an earlier schedule epoch
     WEIGHT_DECAY = 1e-5
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    CHECKPOINT_DIR = Path("checkpoints_efficientnet_sam")
-    PLOT_DIR = Path("plots_efficientnet_sam")
-    IMAGE_SIZE = 224
+    CHECKPOINT_DIR = Path("checkpoints_efficientnet_sam_grouped_5fold")
+    PLOT_DIR = Path("plots_efficientnet_sam_grouped_5fold")
+    IMAGE_HW = (224, 224)          # (height, width) the images are resized to
     NUM_WORKERS = 8
     DATA_DIR = Path("data/raw")
     JPEG_DIR = DATA_DIR / "jpeg"
@@ -210,7 +210,7 @@ def train_efficientnet_kfold(n_folds=5, checkpoint_dir=None, plot_dir=None, log_
 
     raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
     labels = [label for _, label in raw_dataset.samples]
-    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
+    skf = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=42)
 
     log_wb = training_log.create_workbook(log_name)
     log_path = training_log.LOG_DIR / f"{log_name}_training_log.xlsx"
@@ -218,13 +218,13 @@ def train_efficientnet_kfold(n_folds=5, checkpoint_dir=None, plot_dir=None, log_
     all_val_losses, all_val_accs, all_val_f1s = [], [], []
     fold_thresholds = []
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels)):
+    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.patient_ids)):
         print(f"\n========== Fold {fold+1}/{n_folds} ==========")
 
         train_raw = Subset(raw_dataset, train_idx)
         val_raw   = Subset(raw_dataset, val_idx)
-        train_dataset = TransformDataset(train_raw, transform=get_light_train_transforms())
-        val_dataset   = TransformDataset(val_raw,   transform=get_val_transforms())
+        train_dataset = TransformDataset(train_raw, transform=get_light_train_transforms(EfficientNetConfig.IMAGE_HW))
+        val_dataset   = TransformDataset(val_raw,   transform=get_val_transforms(EfficientNetConfig.IMAGE_HW))
 
         train_loader = DataLoader(train_dataset, batch_size=EfficientNetConfig.BATCH_SIZE,
                                   shuffle=True, num_workers=EfficientNetConfig.NUM_WORKERS)
@@ -390,21 +390,30 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--folds", type=int, default=None,
-        help="Number of cross-validation folds. Omit to run 5 folds, writing to "
-             "checkpoints_efficientnet_sam/ and plots_efficientnet_sam/. When given "
-             "explicitly, writes instead to checkpoints_efficientnet_sam_<N>fold/, "
-             "plots_efficientnet_sam_<N>fold/, and "
-             "training_logs/efficientnet_sam_<N>fold_training_log.xlsx. Neither form "
-             "overwrites the pre-existing non-SAM directories or the live app's "
+        help="Number of patient-grouped cross-validation folds. Omit to run 5 folds. "
+             "Writes to checkpoints_efficientnet_sam_grouped_<N>fold/, "
+             "plots_efficientnet_sam_grouped_<N>fold/ and "
+             "training_logs/efficientnet_sam_grouped_<N>fold_training_log.xlsx. With a "
+             "non-default --image-hw, 'grouped' becomes 'grouped_<H>x<W>'. No form "
+             "overwrites the pre-existing directories or the live app's "
              "checkpoints_efficientnet/."
     )
+    parser.add_argument(
+        "--image-hw", type=int, nargs=2, default=[224, 224], metavar=("H", "W"),
+        help="Height and width images are resized to (default: 224 224)."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=16,
+        help="Training and validation batch size (default: 16)."
+    )
     args = parser.parse_args()
-    if args.folds is None:
-        train_efficientnet_kfold()
-    else:
-        train_efficientnet_kfold(
-            n_folds=args.folds,
-            checkpoint_dir=Path(f"checkpoints_efficientnet_sam_{args.folds}fold"),
-            plot_dir=Path(f"plots_efficientnet_sam_{args.folds}fold"),
-            log_name=f"efficientnet_sam_{args.folds}fold",
-        )
+    EfficientNetConfig.IMAGE_HW = tuple(args.image_hw)
+    EfficientNetConfig.BATCH_SIZE = args.batch_size
+    folds = args.folds if args.folds is not None else 5
+    marker = "grouped" if EfficientNetConfig.IMAGE_HW == (224, 224) else         f"grouped_{args.image_hw[0]}x{args.image_hw[1]}"
+    train_efficientnet_kfold(
+        n_folds=folds,
+        checkpoint_dir=Path(f"checkpoints_efficientnet_sam_{marker}_{folds}fold"),
+        plot_dir=Path(f"plots_efficientnet_sam_{marker}_{folds}fold"),
+        log_name=f"efficientnet_sam_{marker}_{folds}fold",
+    )

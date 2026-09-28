@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +14,7 @@ from pathlib import Path
 
 from DataSetAugmentation import (
     MammogramRawDataset, TransformDataset,
-    get_train_transforms, get_val_transforms,
+    get_light_train_transforms, get_val_transforms,
 )
 from evaluate import find_best_threshold
 import training_log
@@ -24,6 +26,7 @@ class CFG:
     MODEL_NAME      = "resnet50"
     BATCH_SIZE      = 16
     IMG_SIZE        = 224
+    IMAGE_HW        = (224, 224)
     EPOCHS          = 55
     NUM_WORKERS     = 4
     DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -46,7 +49,7 @@ class CFG:
 
     # Regularisation
     LABEL_SMOOTHING       = 0.08           # slightly reduced; focal loss handles hard negatives
-    MIXUP_ALPHA           = 0.2            # increased from 0.1 for more regularisation
+    MIXUP_ALPHA           = 0.0
     FOCAL_GAMMA           = 1.5            # focal loss concentration parameter
     FOCAL_WEIGHT          = 0.4            # blend: 0.6 * CE + 0.4 * Focal
     GRAD_CLIP_NORM        = 1.5            # tighter clipping
@@ -404,8 +407,8 @@ WARMUP_EPOCHS_AFTER_UNFREEZE = 2   # ramp freshly-unfrozen LR over this many epo
 
 
 def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_path):
-    train_ds = TransformDataset(Subset(raw_dataset, train_idx), get_train_transforms())
-    val_ds   = TransformDataset(Subset(raw_dataset, val_idx),   get_val_transforms())
+    train_ds = TransformDataset(Subset(raw_dataset, train_idx), get_light_train_transforms(CFG.IMAGE_HW))
+    val_ds   = TransformDataset(Subset(raw_dataset, val_idx),   get_val_transforms(CFG.IMAGE_HW))
 
     train_loader = DataLoader(
         train_ds, batch_size=CFG.BATCH_SIZE, shuffle=True,
@@ -521,20 +524,21 @@ def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_pa
 # ------------------------------------------------------------------
 #  5‑fold cross‑validation
 # ------------------------------------------------------------------
-def main():
+def main(log_name="resnet"):
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
+    CFG.CHECKPOINT_DIR.mkdir(exist_ok=True)
 
-    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"], include_cropped_patches=True)
+    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
     labels      = [lbl for _, lbl in raw_dataset.samples]
     skf         = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 
-    log_wb   = training_log.create_workbook("resnet")
-    log_path = training_log.LOG_DIR / "resnet_training_log.xlsx"
+    log_wb   = training_log.create_workbook(log_name)
+    log_path = training_log.LOG_DIR / f"{log_name}_training_log.xlsx"
 
     fold_f1, fold_tta_f1, fold_threshold = [], [], []
     for fold, (train_idx, val_idx) in enumerate(
-        skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.groups)
+        skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.patient_ids)
     ):
         print(f"\n{'='*50}")
         print(f"  Fold {fold+1} / 5")
@@ -557,4 +561,24 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Train ResNet-50 with 5-fold patient-grouped cross-validation. "
+                    "Writes to checkpoints_resnet_sam_grouped_5fold/ and "
+                    "training_logs/resnet_sam_grouped_5fold_training_log.xlsx; with a "
+                    "non-default --image-hw, 'grouped' becomes 'grouped_<H>x<W>'. Never "
+                    "writes to checkpoints_resnet/."
+    )
+    parser.add_argument(
+        "--image-hw", type=int, nargs=2, default=[224, 224], metavar=("H", "W"),
+        help="Height and width images are resized to (default: 224 224)."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=16,
+        help="Training and validation batch size (default: 16)."
+    )
+    args = parser.parse_args()
+    CFG.IMAGE_HW = tuple(args.image_hw)
+    CFG.BATCH_SIZE = args.batch_size
+    marker = "grouped" if CFG.IMAGE_HW == (224, 224) else f"grouped_{args.image_hw[0]}x{args.image_hw[1]}"
+    CFG.CHECKPOINT_DIR = Path(f"checkpoints_resnet_sam_{marker}_5fold")
+    main(log_name=f"resnet_sam_{marker}_5fold")
