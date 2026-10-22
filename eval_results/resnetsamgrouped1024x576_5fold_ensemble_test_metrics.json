@@ -1,0 +1,17 @@
+{
+  "model": "resnet",
+  "checkpoints": [
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_resnet_sam_grouped_1024x576_5fold\\fold1_best.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_resnet_sam_grouped_1024x576_5fold\\fold2_best.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_resnet_sam_grouped_1024x576_5fold\\fold3_best.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_resnet_sam_grouped_1024x576_5fold\\fold4_best.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_resnet_sam_grouped_1024x576_5fold\\fold5_best.pth"
+  ],
+  "tta": true,
+  "threshold": 0.5,
+  "n_samples": 704,
+  "accuracy": 0.7443181818181818,
+  "precision": 0.6578947368421053,
+  "recall": 0.7246376811594203,
+  "f1": 0.6896551724137931
+}

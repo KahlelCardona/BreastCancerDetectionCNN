@@ -1,0 +1,14 @@
+{
+  "model": "efficientnet",
+  "checkpoints": [
+    "checkpoints_efficientnet_sam_grouped_2048x1152_5fold\\best_model_fold_4.pth"
+  ],
+  "tta": true,
+  "amp": true,
+  "threshold": 0.5,
+  "n_samples": 704,
+  "accuracy": 0.7230113636363636,
+  "precision": 0.6391752577319587,
+  "recall": 0.6739130434782609,
+  "f1": 0.656084656084656
+}

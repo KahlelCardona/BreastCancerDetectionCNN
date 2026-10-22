@@ -1,0 +1,37 @@
+﻿py : Traceback (most recent call last):
+At line:1 char:355
++ ... ectionCNN"; py -u EfficientNet.py --folds 5 --image-hw 1024 576 --bat ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<string>", line 1, in <module>
+    from multiprocessing.spawn import spawn_main; spawn_main(parent_pid=15428, pipe_handle=2148)
+                                                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\multiprocessing\spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\multiprocessing\spawn.py", line 131, in _main
+    prepare(preparation_data)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\multiprocessing\spawn.py", line 246, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\multiprocessing\spawn.py", line 297, in 
+_fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+                                  run_name="__mp_main__")
+  File "<frozen runpy>", line 287, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "A:\Projects\BreastCancerDetectionCNN\EfficientNet.py", line 2, in <module>
+    import torch
+  File "C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\__init__.py", line 280, in 
+<module>
+    _load_dll_libraries()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\__init__.py", line 263, in 
+_load_dll_libraries
+    raise err
+OSError: [WinError 1455] The paging file is too small for this operation to complete. Error loading 
+"C:\Users\Kahlel\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\lib\cufft64_11.dll" or one of its 
+dependencies.

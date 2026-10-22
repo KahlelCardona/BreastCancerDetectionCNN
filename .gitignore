@@ -13,3 +13,5 @@ venv/
 # Model weights
 *.pt
 *.pth
+# Patch-pretraining patch sets (make_patches.py)
+data/patches_*/

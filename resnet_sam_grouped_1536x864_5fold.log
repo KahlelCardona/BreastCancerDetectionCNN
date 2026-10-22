@@ -1,0 +1,404 @@
+Config: image_hw=(1536, 864) micro_batch=8 accum_steps=1 effective_batch=8 amp=True workers=4
+Found 10237 total JPG files
+Loaded 2864 labelled samples from ['mass_train', 'calc_train'] (2864 full images + 0 cropped patches)
+  - Benign: 1683
+  - Malignant: 1181
+
+==================================================
+  Fold 1 / 5
+==================================================
+  Epoch  1 | Train Loss 0.4832 | Val Loss 0.5871 Acc 0.6579 Prec 0.5735 Rec 0.6610 F1 0.6142
+  Epoch  2 | Train Loss 0.4588 | Val Loss 0.5650 Acc 0.6614 Prec 0.5784 Rec 0.6568 F1 0.6151
+  Epoch  3 | Train Loss 0.4536 | Val Loss 0.5812 Acc 0.6597 Prec 0.5672 Rec 0.7331 F1 0.6396
+  Epoch  4 | Train Loss 0.4412 | Val Loss 0.5717 Acc 0.6597 Prec 0.5700 Rec 0.7076 F1 0.6314
+  [Fold 1] Epoch 5: Unfreezing ['layer4']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch  5 | Train Loss 0.4430 | Val Loss 0.5679 Acc 0.6771 Prec 0.5695 Rec 0.8856 F1 0.6932
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch  6 | Train Loss 0.4362 | Val Loss 0.5563 Acc 0.6632 Prec 0.5616 Rec 0.8305 F1 0.6701
+  Epoch  7 | Train Loss 0.4252 | Val Loss 0.5675 Acc 0.6492 Prec 0.5464 Rec 0.8729 F1 0.6721
+  Epoch  8 | Train Loss 0.4191 | Val Loss 0.5351 Acc 0.6702 Prec 0.5719 Rec 0.7924 F1 0.6643
+  --> saved best model
+  Epoch  9 | Train Loss 0.4150 | Val Loss 0.5271 Acc 0.6981 Prec 0.5882 Rec 0.8898 F1 0.7083
+  --> saved best model
+  [Fold 1] Epoch 10: Unfreezing ['layer3']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch 10 | Train Loss 0.4157 | Val Loss 0.5273 Acc 0.6981 Prec 0.6033 Rec 0.7797 F1 0.6802
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch 11 | Train Loss 0.4138 | Val Loss 0.5543 Acc 0.6824 Prec 0.5854 Rec 0.7839 F1 0.6703
+  Epoch 12 | Train Loss 0.4200 | Val Loss 0.5622 Acc 0.7033 Prec 0.5917 Rec 0.9025 F1 0.7148
+  Epoch 13 | Train Loss 0.4043 | Val Loss 0.5347 Acc 0.6719 Prec 0.5795 Rec 0.7415 F1 0.6506
+  Epoch 14 | Train Loss 0.3902 | Val Loss 0.5298 Acc 0.6876 Prec 0.6000 Rec 0.7246 F1 0.6564
+  Epoch 15 | Train Loss 0.3730 | Val Loss 0.5139 Acc 0.7068 Prec 0.6111 Rec 0.7924 F1 0.6900
+  --> saved best model
+  Epoch 16 | Train Loss 0.3741 | Val Loss 0.5257 Acc 0.6981 Prec 0.5940 Rec 0.8432 F1 0.6970
+  Epoch 17 | Train Loss 0.3679 | Val Loss 0.4915 Acc 0.7382 Prec 0.6991 Rec 0.6398 F1 0.6681
+  --> saved best model
+  Epoch 18 | Train Loss 0.3560 | Val Loss 0.5112 Acc 0.7417 Prec 0.6477 Rec 0.8178 F1 0.7228
+  Epoch 19 | Train Loss 0.3459 | Val Loss 0.5050 Acc 0.7469 Prec 0.6730 Rec 0.7500 F1 0.7094
+  Epoch 20 | Train Loss 0.3547 | Val Loss 0.5061 Acc 0.7400 Prec 0.6605 Rec 0.7585 F1 0.7061
+  Epoch 21 | Train Loss 0.3410 | Val Loss 0.4841 Acc 0.7522 Prec 0.6715 Rec 0.7797 F1 0.7216
+  --> saved best model
+  Epoch 22 | Train Loss 0.3436 | Val Loss 0.4832 Acc 0.7522 Prec 0.6780 Rec 0.7585 F1 0.7160
+  --> saved best model
+  Epoch 23 | Train Loss 0.3382 | Val Loss 0.4832 Acc 0.7644 Prec 0.6950 Rec 0.7627 F1 0.7273
+  Epoch 24 | Train Loss 0.3385 | Val Loss 0.5168 Acc 0.7190 Prec 0.6126 Rec 0.8644 F1 0.7170
+  Epoch 25 | Train Loss 0.3536 | Val Loss 0.5077 Acc 0.7312 Prec 0.6358 Rec 0.8136 F1 0.7138
+  Epoch 26 | Train Loss 0.3508 | Val Loss 0.4660 Acc 0.7644 Prec 0.7045 Rec 0.7373 F1 0.7205
+  --> saved best model
+  Epoch 27 | Train Loss 0.3429 | Val Loss 0.5221 Acc 0.7208 Prec 0.6086 Rec 0.9025 F1 0.7270
+  Epoch 28 | Train Loss 0.3425 | Val Loss 0.5082 Acc 0.7312 Prec 0.6192 Rec 0.9025 F1 0.7345
+  Epoch 29 | Train Loss 0.3331 | Val Loss 0.5474 Acc 0.6894 Prec 0.5780 Rec 0.9110 F1 0.7072
+  Epoch 30 | Train Loss 0.3338 | Val Loss 0.5258 Acc 0.7068 Prec 0.5924 Rec 0.9237 F1 0.7219
+  Epoch 31 | Train Loss 0.3212 | Val Loss 0.4912 Acc 0.7435 Prec 0.6478 Rec 0.8263 F1 0.7263
+  Epoch 32 | Train Loss 0.3105 | Val Loss 0.4772 Acc 0.7644 Prec 0.6836 Rec 0.7966 F1 0.7358
+  Epoch 33 | Train Loss 0.3023 | Val Loss 0.4775 Acc 0.7504 Prec 0.6545 Rec 0.8347 F1 0.7337
+  Epoch 34 | Train Loss 0.3007 | Val Loss 0.5020 Acc 0.7731 Prec 0.6815 Rec 0.8432 F1 0.7538
+  Epoch 35 | Train Loss 0.3016 | Val Loss 0.4694 Acc 0.7766 Prec 0.7231 Rec 0.7415 F1 0.7322
+  Epoch 36 | Train Loss 0.2995 | Val Loss 0.4884 Acc 0.7766 Prec 0.6971 Rec 0.8093 F1 0.7490
+  Epoch 37 | Train Loss 0.2950 | Val Loss 0.4766 Acc 0.7714 Prec 0.7160 Rec 0.7373 F1 0.7265
+  Epoch 38 | Train Loss 0.2847 | Val Loss 0.4657 Acc 0.7801 Prec 0.7331 Rec 0.7331 F1 0.7331
+  --> saved best model
+  Epoch 39 | Train Loss 0.2776 | Val Loss 0.4701 Acc 0.7714 Prec 0.7178 Rec 0.7331 F1 0.7254
+  Epoch 40 | Train Loss 0.3058 | Val Loss 0.4869 Acc 0.7818 Prec 0.6975 Rec 0.8305 F1 0.7582
+  Epoch 41 | Train Loss 0.3168 | Val Loss 0.4530 Acc 0.7871 Prec 0.7545 Rec 0.7161 F1 0.7348
+  --> saved best model
+  Epoch 42 | Train Loss 0.3041 | Val Loss 0.4756 Acc 0.7766 Prec 0.6776 Rec 0.8729 F1 0.7630
+  Epoch 43 | Train Loss 0.2966 | Val Loss 0.4750 Acc 0.8010 Prec 0.7440 Rec 0.7881 F1 0.7654
+  Epoch 44 | Train Loss 0.2884 | Val Loss 0.4554 Acc 0.7923 Prec 0.7224 Rec 0.8051 F1 0.7615
+  Epoch 45 | Train Loss 0.2850 | Val Loss 0.4546 Acc 0.7853 Prec 0.7306 Rec 0.7585 F1 0.7443
+  Epoch 46 | Train Loss 0.2810 | Val Loss 0.4516 Acc 0.7871 Prec 0.7096 Rec 0.8178 F1 0.7598
+  --> saved best model
+  Epoch 47 | Train Loss 0.2699 | Val Loss 0.4629 Acc 0.7958 Prec 0.8020 Rec 0.6695 F1 0.7298
+  Epoch 48 | Train Loss 0.2659 | Val Loss 0.4493 Acc 0.7941 Prec 0.7565 Rec 0.7373 F1 0.7468
+  --> saved best model
+  Epoch 49 | Train Loss 0.2610 | Val Loss 0.4681 Acc 0.7766 Prec 0.7288 Rec 0.7288 F1 0.7288
+  Epoch 50 | Train Loss 0.2539 | Val Loss 0.4431 Acc 0.7906 Prec 0.7613 Rec 0.7161 F1 0.7380
+  --> saved best model
+  Epoch 51 | Train Loss 0.2494 | Val Loss 0.4573 Acc 0.7871 Prec 0.7317 Rec 0.7627 F1 0.7469
+  Epoch 52 | Train Loss 0.2474 | Val Loss 0.4405 Acc 0.7993 Prec 0.7840 Rec 0.7076 F1 0.7439
+  --> saved best model
+  Epoch 53 | Train Loss 0.2428 | Val Loss 0.4410 Acc 0.7871 Prec 0.7689 Rec 0.6907 F1 0.7277
+  Epoch 54 | Train Loss 0.2442 | Val Loss 0.4449 Acc 0.8010 Prec 0.7652 Rec 0.7458 F1 0.7554
+  Epoch 55 | Train Loss 0.2570 | Val Loss 0.4532 Acc 0.7976 Prec 0.7542 Rec 0.7542 F1 0.7542
+  Fold 1 best-val F1  (no TTA): 0.7439
+  Fold 1 best-val F1 (with TTA): 0.7702
+  Fold 1 best threshold: 0.35 (val F1 0.7514 vs default-0.5 F1 0.7702)
+
+
+==================================================
+  Fold 2 / 5
+==================================================
+  Epoch  1 | Train Loss 0.4968 | Val Loss 0.5842 Acc 0.6760 Prec 0.5962 Rec 0.6667 F1 0.6295
+  Epoch  2 | Train Loss 0.4757 | Val Loss 0.5724 Acc 0.6429 Prec 0.6176 Rec 0.3544 F1 0.4504
+  Epoch  3 | Train Loss 0.4542 | Val Loss 0.5494 Acc 0.6829 Prec 0.5926 Rec 0.7426 F1 0.6592
+  Epoch  4 | Train Loss 0.4446 | Val Loss 0.5527 Acc 0.6882 Prec 0.6051 Rec 0.7046 F1 0.6511
+  [Fold 2] Epoch 5: Unfreezing ['layer4']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch  5 | Train Loss 0.4480 | Val Loss 0.5494 Acc 0.6794 Prec 0.5936 Rec 0.7089 F1 0.6462
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch  6 | Train Loss 0.4456 | Val Loss 0.5577 Acc 0.6899 Prec 0.5942 Rec 0.7848 F1 0.6764
+  Epoch  7 | Train Loss 0.4298 | Val Loss 0.5311 Acc 0.7056 Prec 0.6189 Rec 0.7468 F1 0.6769
+  Epoch  8 | Train Loss 0.4204 | Val Loss 0.5338 Acc 0.7230 Prec 0.6147 Rec 0.8819 F1 0.7244
+  --> saved best model
+  Epoch  9 | Train Loss 0.4229 | Val Loss 0.5113 Acc 0.7160 Prec 0.6250 Rec 0.7806 F1 0.6942
+  --> saved best model
+  [Fold 2] Epoch 10: Unfreezing ['layer3']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch 10 | Train Loss 0.4226 | Val Loss 0.5371 Acc 0.7143 Prec 0.6022 Rec 0.9072 F1 0.7239
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch 11 | Train Loss 0.4244 | Val Loss 0.5165 Acc 0.7143 Prec 0.6318 Rec 0.7384 F1 0.6809
+  Epoch 12 | Train Loss 0.4162 | Val Loss 0.5014 Acc 0.7369 Prec 0.6483 Rec 0.7932 F1 0.7135
+  --> saved best model
+  Epoch 13 | Train Loss 0.4112 | Val Loss 0.5105 Acc 0.7491 Prec 0.6535 Rec 0.8354 F1 0.7333
+  Epoch 14 | Train Loss 0.4025 | Val Loss 0.4891 Acc 0.7352 Prec 0.6460 Rec 0.7932 F1 0.7121
+  --> saved best model
+  Epoch 15 | Train Loss 0.3946 | Val Loss 0.5360 Acc 0.7439 Prec 0.6324 Rec 0.9072 F1 0.7452
+  Epoch 16 | Train Loss 0.3774 | Val Loss 0.5017 Acc 0.7456 Prec 0.6444 Rec 0.8565 F1 0.7355
+  Epoch 17 | Train Loss 0.3690 | Val Loss 0.4755 Acc 0.7631 Prec 0.6747 Rec 0.8228 F1 0.7414
+  --> saved best model
+  Epoch 18 | Train Loss 0.3648 | Val Loss 0.4876 Acc 0.7544 Prec 0.6558 Rec 0.8523 F1 0.7413
+  Epoch 19 | Train Loss 0.3574 | Val Loss 0.4945 Acc 0.7526 Prec 0.6547 Rec 0.8481 F1 0.7390
+  Epoch 20 | Train Loss 0.3587 | Val Loss 0.4530 Acc 0.7770 Prec 0.6996 Rec 0.8059 F1 0.7490
+  --> saved best model
+  Epoch 21 | Train Loss 0.3384 | Val Loss 0.4798 Acc 0.7822 Prec 0.7074 Rec 0.8059 F1 0.7535
+  Epoch 22 | Train Loss 0.3541 | Val Loss 0.4730 Acc 0.7892 Prec 0.7613 Rec 0.7131 F1 0.7364
+  Epoch 23 | Train Loss 0.3479 | Val Loss 0.4890 Acc 0.7718 Prec 0.6815 Rec 0.8397 F1 0.7524
+  Epoch 24 | Train Loss 0.3411 | Val Loss 0.4537 Acc 0.7875 Prec 0.7406 Rec 0.7468 F1 0.7437
+  Epoch 25 | Train Loss 0.3665 | Val Loss 0.5293 Acc 0.7422 Prec 0.6336 Rec 0.8903 F1 0.7404
+  Epoch 26 | Train Loss 0.3497 | Val Loss 0.4817 Acc 0.7683 Prec 0.7921 Rec 0.5949 F1 0.6795
+  Epoch 27 | Train Loss 0.3394 | Val Loss 0.4841 Acc 0.7718 Prec 0.6949 Rec 0.7975 F1 0.7426
+  Epoch 28 | Train Loss 0.3473 | Val Loss 0.4759 Acc 0.7805 Prec 0.6975 Rec 0.8270 F1 0.7568
+  Epoch 29 | Train Loss 0.3411 | Val Loss 0.4661 Acc 0.7578 Prec 0.6512 Rec 0.8903 F1 0.7522
+  Epoch 30 | Train Loss 0.3289 | Val Loss 0.4658 Acc 0.7822 Prec 0.7171 Rec 0.7806 F1 0.7475
+  Epoch 31 | Train Loss 0.3254 | Val Loss 0.4838 Acc 0.7700 Prec 0.6646 Rec 0.8945 F1 0.7626
+  Epoch 32 | Train Loss 0.3138 | Val Loss 0.4753 Acc 0.7875 Prec 0.7511 Rec 0.7257 F1 0.7382
+  Early stop at epoch 32 (best F1 0.7490 at epoch 20)
+  Fold 2 best-val F1  (no TTA): 0.7490
+  Fold 2 best-val F1 (with TTA): 0.7405
+  Fold 2 best threshold: 0.39 (val F1 0.7336 vs default-0.5 F1 0.7405)
+
+
+==================================================
+  Fold 3 / 5
+==================================================
+  Epoch  1 | Train Loss 0.4895 | Val Loss 0.5850 Acc 0.6632 Prec 0.5782 Rec 0.6737 F1 0.6223
+  Epoch  2 | Train Loss 0.4580 | Val Loss 0.6114 Acc 0.6353 Prec 0.5358 Rec 0.8559 F1 0.6591
+  Epoch  3 | Train Loss 0.4481 | Val Loss 0.5761 Acc 0.6754 Prec 0.5812 Rec 0.7585 F1 0.6581
+  Epoch  4 | Train Loss 0.4470 | Val Loss 0.6129 Acc 0.6370 Prec 0.5361 Rec 0.8814 F1 0.6667
+  [Fold 3] Epoch 5: Unfreezing ['layer4']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch  5 | Train Loss 0.4493 | Val Loss 0.5531 Acc 0.6579 Prec 0.5637 Rec 0.7500 F1 0.6436
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch  6 | Train Loss 0.4385 | Val Loss 0.5459 Acc 0.6824 Prec 0.5726 Rec 0.9025 F1 0.7007
+  Epoch  7 | Train Loss 0.4326 | Val Loss 0.5324 Acc 0.6894 Prec 0.5824 Rec 0.8686 F1 0.6973
+  Epoch  8 | Train Loss 0.4334 | Val Loss 0.5334 Acc 0.7086 Prec 0.6006 Rec 0.8729 F1 0.7116
+  --> saved best model
+  Epoch  9 | Train Loss 0.4286 | Val Loss 0.5308 Acc 0.6894 Prec 0.5771 Rec 0.9195 F1 0.7092
+  --> saved best model
+  [Fold 3] Epoch 10: Unfreezing ['layer3']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch 10 | Train Loss 0.4195 | Val Loss 0.5801 Acc 0.6702 Prec 0.5580 Rec 0.9576 F1 0.7051
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch 11 | Train Loss 0.4258 | Val Loss 0.5557 Acc 0.6614 Prec 0.5512 Rec 0.9576 F1 0.6997
+  Epoch 12 | Train Loss 0.4126 | Val Loss 0.5391 Acc 0.6824 Prec 0.5678 Rec 0.9576 F1 0.7129
+  Epoch 13 | Train Loss 0.4158 | Val Loss 0.5678 Acc 0.6824 Prec 0.5703 Rec 0.9280 F1 0.7065
+  Epoch 14 | Train Loss 0.4028 | Val Loss 0.5284 Acc 0.6998 Prec 0.5947 Rec 0.8517 F1 0.7003
+  --> saved best model
+  Epoch 15 | Train Loss 0.3920 | Val Loss 0.5196 Acc 0.7120 Prec 0.5957 Rec 0.9364 F1 0.7282
+  --> saved best model
+  Epoch 16 | Train Loss 0.3894 | Val Loss 0.5193 Acc 0.7086 Prec 0.5930 Rec 0.9322 F1 0.7249
+  --> saved best model
+  Epoch 17 | Train Loss 0.3853 | Val Loss 0.5073 Acc 0.6998 Prec 0.5821 Rec 0.9619 F1 0.7252
+  --> saved best model
+  Epoch 18 | Train Loss 0.3791 | Val Loss 0.4785 Acc 0.7347 Prec 0.6321 Rec 0.8517 F1 0.7256
+  --> saved best model
+  Epoch 19 | Train Loss 0.3657 | Val Loss 0.4876 Acc 0.7452 Prec 0.6355 Rec 0.8941 F1 0.7430
+  Epoch 20 | Train Loss 0.3732 | Val Loss 0.4773 Acc 0.7400 Prec 0.6355 Rec 0.8644 F1 0.7325
+  --> saved best model
+  Epoch 21 | Train Loss 0.3635 | Val Loss 0.5005 Acc 0.7103 Prec 0.5956 Rec 0.9237 F1 0.7243
+  Epoch 22 | Train Loss 0.3617 | Val Loss 0.4622 Acc 0.7766 Prec 0.6875 Rec 0.8390 F1 0.7557
+  --> saved best model
+  Epoch 23 | Train Loss 0.3691 | Val Loss 0.4599 Acc 0.7661 Prec 0.6723 Rec 0.8432 F1 0.7481
+  --> saved best model
+  Epoch 24 | Train Loss 0.3517 | Val Loss 0.4749 Acc 0.7557 Prec 0.6491 Rec 0.8856 F1 0.7491
+  Epoch 25 | Train Loss 0.3701 | Val Loss 0.4945 Acc 0.7766 Prec 0.6776 Rec 0.8729 F1 0.7630
+  Epoch 26 | Train Loss 0.3652 | Val Loss 0.4665 Acc 0.7749 Prec 0.6877 Rec 0.8305 F1 0.7524
+  Epoch 27 | Train Loss 0.3567 | Val Loss 0.4861 Acc 0.7382 Prec 0.6295 Rec 0.8856 F1 0.7359
+  Epoch 28 | Train Loss 0.3561 | Val Loss 0.5072 Acc 0.7120 Prec 0.5952 Rec 0.9407 F1 0.7291
+  Epoch 29 | Train Loss 0.3445 | Val Loss 0.4478 Acc 0.7888 Prec 0.6885 Rec 0.8898 F1 0.7763
+  --> saved best model
+  Epoch 30 | Train Loss 0.3504 | Val Loss 0.4509 Acc 0.7784 Prec 0.6775 Rec 0.8814 F1 0.7661
+  Epoch 31 | Train Loss 0.3368 | Val Loss 0.4644 Acc 0.7801 Prec 0.6937 Rec 0.8347 F1 0.7577
+  Epoch 32 | Train Loss 0.3233 | Val Loss 0.4387 Acc 0.8133 Prec 0.7247 Rec 0.8814 F1 0.7954
+  --> saved best model
+  Epoch 33 | Train Loss 0.3214 | Val Loss 0.4268 Acc 0.7923 Prec 0.7349 Rec 0.7754 F1 0.7546
+  --> saved best model
+  Epoch 34 | Train Loss 0.3190 | Val Loss 0.4489 Acc 0.7836 Prec 0.6830 Rec 0.8856 F1 0.7712
+  Epoch 35 | Train Loss 0.3095 | Val Loss 0.4387 Acc 0.7976 Prec 0.7158 Rec 0.8432 F1 0.7743
+  Epoch 36 | Train Loss 0.3019 | Val Loss 0.4537 Acc 0.7888 Prec 0.6949 Rec 0.8686 F1 0.7721
+  Epoch 37 | Train Loss 0.3062 | Val Loss 0.4350 Acc 0.7993 Prec 0.7232 Rec 0.8305 F1 0.7732
+  Epoch 38 | Train Loss 0.2979 | Val Loss 0.4348 Acc 0.7888 Prec 0.7091 Rec 0.8263 F1 0.7632
+  Epoch 39 | Train Loss 0.3027 | Val Loss 0.4472 Acc 0.7976 Prec 0.7055 Rec 0.8729 F1 0.7803
+  Epoch 40 | Train Loss 0.3267 | Val Loss 0.4550 Acc 0.7539 Prec 0.6471 Rec 0.8856 F1 0.7478
+  Epoch 41 | Train Loss 0.3201 | Val Loss 0.4275 Acc 0.7888 Prec 0.7556 Rec 0.7203 F1 0.7375
+  Epoch 42 | Train Loss 0.3151 | Val Loss 0.4327 Acc 0.7976 Prec 0.7190 Rec 0.8347 F1 0.7725
+  Epoch 43 | Train Loss 0.3146 | Val Loss 0.4371 Acc 0.7923 Prec 0.7175 Rec 0.8178 F1 0.7644
+  Epoch 44 | Train Loss 0.3031 | Val Loss 0.4501 Acc 0.7818 Prec 0.6832 Rec 0.8771 F1 0.7681
+  Epoch 45 | Train Loss 0.2874 | Val Loss 0.4103 Acc 0.8185 Prec 0.7519 Rec 0.8347 F1 0.7912
+  --> saved best model
+  Epoch 46 | Train Loss 0.2851 | Val Loss 0.4156 Acc 0.8098 Prec 0.7292 Rec 0.8559 F1 0.7875
+  Epoch 47 | Train Loss 0.2741 | Val Loss 0.4186 Acc 0.8185 Prec 0.7391 Rec 0.8644 F1 0.7969
+  Epoch 48 | Train Loss 0.2771 | Val Loss 0.4037 Acc 0.8255 Prec 0.7677 Rec 0.8263 F1 0.7959
+  --> saved best model
+  Epoch 49 | Train Loss 0.2749 | Val Loss 0.4127 Acc 0.7993 Prec 0.7665 Rec 0.7373 F1 0.7516
+  Epoch 50 | Train Loss 0.2579 | Val Loss 0.4077 Acc 0.8045 Prec 0.7366 Rec 0.8178 F1 0.7751
+  Epoch 51 | Train Loss 0.2578 | Val Loss 0.4099 Acc 0.8150 Prec 0.7407 Rec 0.8475 F1 0.7905
+  Epoch 52 | Train Loss 0.2519 | Val Loss 0.4075 Acc 0.8080 Prec 0.7351 Rec 0.8347 F1 0.7817
+  Epoch 53 | Train Loss 0.2523 | Val Loss 0.3868 Acc 0.7976 Prec 0.7381 Rec 0.7881 F1 0.7623
+  --> saved best model
+  Epoch 54 | Train Loss 0.2592 | Val Loss 0.4054 Acc 0.8115 Prec 0.7667 Rec 0.7797 F1 0.7731
+  Epoch 55 | Train Loss 0.2682 | Val Loss 0.4101 Acc 0.8202 Prec 0.8093 Rec 0.7373 F1 0.7716
+  Fold 3 best-val F1  (no TTA): 0.7623
+  Fold 3 best-val F1 (with TTA): 0.7753
+  Fold 3 best threshold: 0.52 (val F1 0.7576 vs default-0.5 F1 0.7753)
+
+
+==================================================
+  Fold 4 / 5
+==================================================
+  Epoch  1 | Train Loss 0.4975 | Val Loss 0.5501 Acc 0.6918 Prec 0.6097 Rec 0.6979 F1 0.6508
+  Epoch  2 | Train Loss 0.4669 | Val Loss 0.5676 Acc 0.6848 Prec 0.6256 Rec 0.5830 F1 0.6035
+  Epoch  3 | Train Loss 0.4559 | Val Loss 0.5392 Acc 0.7040 Prec 0.6422 Rec 0.6340 F1 0.6381
+  Epoch  4 | Train Loss 0.4473 | Val Loss 0.5364 Acc 0.6953 Prec 0.6225 Rec 0.6596 F1 0.6405
+  [Fold 4] Epoch 5: Unfreezing ['layer4']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch  5 | Train Loss 0.4573 | Val Loss 0.5223 Acc 0.7250 Prec 0.6318 Rec 0.7957 F1 0.7043
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch  6 | Train Loss 0.4431 | Val Loss 0.5240 Acc 0.7163 Prec 0.6116 Rec 0.8511 F1 0.7117
+  Epoch  7 | Train Loss 0.4334 | Val Loss 0.5189 Acc 0.7058 Prec 0.5994 Rec 0.8596 F1 0.7063
+  Epoch  8 | Train Loss 0.4317 | Val Loss 0.5140 Acc 0.7163 Prec 0.6151 Rec 0.8298 F1 0.7065
+  --> saved best model
+  Epoch  9 | Train Loss 0.4192 | Val Loss 0.5248 Acc 0.7110 Prec 0.6174 Rec 0.7830 F1 0.6904
+  [Fold 4] Epoch 10: Unfreezing ['layer3']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch 10 | Train Loss 0.4259 | Val Loss 0.5218 Acc 0.7320 Prec 0.6395 Rec 0.8000 F1 0.7108
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch 11 | Train Loss 0.4205 | Val Loss 0.5033 Acc 0.7461 Prec 0.6562 Rec 0.8043 F1 0.7228
+  --> saved best model
+  Epoch 12 | Train Loss 0.4076 | Val Loss 0.4863 Acc 0.7356 Prec 0.6329 Rec 0.8511 F1 0.7260
+  --> saved best model
+  Epoch 13 | Train Loss 0.4049 | Val Loss 0.4761 Acc 0.7426 Prec 0.6594 Rec 0.7745 F1 0.7123
+  --> saved best model
+  Epoch 14 | Train Loss 0.3857 | Val Loss 0.4837 Acc 0.7653 Prec 0.6712 Rec 0.8426 F1 0.7472
+  Epoch 15 | Train Loss 0.3873 | Val Loss 0.4836 Acc 0.7583 Prec 0.6580 Rec 0.8596 F1 0.7454
+  Epoch 16 | Train Loss 0.3640 | Val Loss 0.4816 Acc 0.7548 Prec 0.6792 Rec 0.7660 F1 0.7200
+  Epoch 17 | Train Loss 0.3620 | Val Loss 0.4664 Acc 0.7706 Prec 0.6912 Rec 0.8000 F1 0.7416
+  --> saved best model
+  Epoch 18 | Train Loss 0.3562 | Val Loss 0.4551 Acc 0.7653 Prec 0.6850 Rec 0.7957 F1 0.7362
+  --> saved best model
+  Epoch 19 | Train Loss 0.3506 | Val Loss 0.4592 Acc 0.7758 Prec 0.6918 Rec 0.8213 F1 0.7510
+  Epoch 20 | Train Loss 0.3462 | Val Loss 0.4599 Acc 0.7758 Prec 0.7238 Rec 0.7362 F1 0.7300
+  Epoch 21 | Train Loss 0.3355 | Val Loss 0.4694 Acc 0.7793 Prec 0.7339 Rec 0.7277 F1 0.7308
+  Epoch 22 | Train Loss 0.3324 | Val Loss 0.4618 Acc 0.7881 Prec 0.7096 Rec 0.8213 F1 0.7613
+  Epoch 23 | Train Loss 0.3346 | Val Loss 0.4626 Acc 0.7881 Prec 0.7639 Rec 0.7021 F1 0.7317
+  Epoch 24 | Train Loss 0.3277 | Val Loss 0.4562 Acc 0.7846 Prec 0.7373 Rec 0.7404 F1 0.7389
+  Epoch 25 | Train Loss 0.3437 | Val Loss 0.4569 Acc 0.7741 Prec 0.7304 Rec 0.7149 F1 0.7226
+  Epoch 26 | Train Loss 0.3501 | Val Loss 0.4496 Acc 0.7881 Prec 0.7317 Rec 0.7660 F1 0.7484
+  --> saved best model
+  Epoch 27 | Train Loss 0.3487 | Val Loss 0.4612 Acc 0.8039 Prec 0.7639 Rec 0.7574 F1 0.7607
+  Epoch 28 | Train Loss 0.3392 | Val Loss 0.4496 Acc 0.7776 Prec 0.7160 Rec 0.7617 F1 0.7381
+  --> saved best model
+  Epoch 29 | Train Loss 0.3286 | Val Loss 0.4440 Acc 0.8004 Prec 0.7469 Rec 0.7787 F1 0.7625
+  --> saved best model
+  Epoch 30 | Train Loss 0.3208 | Val Loss 0.4584 Acc 0.7758 Prec 0.7716 Rec 0.6468 F1 0.7037
+  Epoch 31 | Train Loss 0.3102 | Val Loss 0.4436 Acc 0.7986 Prec 0.7400 Rec 0.7872 F1 0.7629
+  --> saved best model
+  Epoch 32 | Train Loss 0.3193 | Val Loss 0.4426 Acc 0.7986 Prec 0.7273 Rec 0.8170 F1 0.7695
+  --> saved best model
+  Epoch 33 | Train Loss 0.2998 | Val Loss 0.4370 Acc 0.7916 Prec 0.7164 Rec 0.8170 F1 0.7634
+  --> saved best model
+  Epoch 34 | Train Loss 0.2939 | Val Loss 0.4370 Acc 0.7881 Prec 0.7395 Rec 0.7489 F1 0.7442
+  Epoch 35 | Train Loss 0.2904 | Val Loss 0.4385 Acc 0.7793 Prec 0.7224 Rec 0.7532 F1 0.7375
+  Epoch 36 | Train Loss 0.2912 | Val Loss 0.4341 Acc 0.7793 Prec 0.7380 Rec 0.7191 F1 0.7284
+  --> saved best model
+  Epoch 37 | Train Loss 0.2766 | Val Loss 0.4376 Acc 0.7881 Prec 0.7317 Rec 0.7660 F1 0.7484
+  Epoch 38 | Train Loss 0.2817 | Val Loss 0.4356 Acc 0.7951 Prec 0.7500 Rec 0.7532 F1 0.7516
+  Epoch 39 | Train Loss 0.2777 | Val Loss 0.4414 Acc 0.7951 Prec 0.7500 Rec 0.7532 F1 0.7516
+  Epoch 40 | Train Loss 0.3021 | Val Loss 0.4384 Acc 0.7968 Prec 0.7280 Rec 0.8085 F1 0.7661
+  Epoch 41 | Train Loss 0.2919 | Val Loss 0.4376 Acc 0.8056 Prec 0.8010 Rec 0.7021 F1 0.7483
+  Epoch 42 | Train Loss 0.3006 | Val Loss 0.4462 Acc 0.7863 Prec 0.7511 Rec 0.7191 F1 0.7348
+  Epoch 43 | Train Loss 0.2784 | Val Loss 0.4263 Acc 0.8091 Prec 0.7520 Rec 0.8000 F1 0.7753
+  --> saved best model
+  Epoch 44 | Train Loss 0.2777 | Val Loss 0.4305 Acc 0.7881 Prec 0.7317 Rec 0.7660 F1 0.7484
+  Epoch 45 | Train Loss 0.2825 | Val Loss 0.4396 Acc 0.7933 Prec 0.7312 Rec 0.7872 F1 0.7582
+  Epoch 46 | Train Loss 0.2745 | Val Loss 0.4330 Acc 0.7863 Prec 0.7489 Rec 0.7234 F1 0.7359
+  Epoch 47 | Train Loss 0.2663 | Val Loss 0.4207 Acc 0.7933 Prec 0.7489 Rec 0.7489 F1 0.7489
+  --> saved best model
+  Epoch 48 | Train Loss 0.2511 | Val Loss 0.4218 Acc 0.8021 Prec 0.7675 Rec 0.7447 F1 0.7559
+  Epoch 49 | Train Loss 0.2588 | Val Loss 0.4293 Acc 0.7986 Prec 0.7632 Rec 0.7404 F1 0.7516
+  Epoch 50 | Train Loss 0.2424 | Val Loss 0.4128 Acc 0.8126 Prec 0.7807 Rec 0.7574 F1 0.7689
+  --> saved best model
+  Epoch 51 | Train Loss 0.2329 | Val Loss 0.4339 Acc 0.7916 Prec 0.8258 Rec 0.6255 F1 0.7119
+  Epoch 52 | Train Loss 0.2421 | Val Loss 0.4192 Acc 0.8039 Prec 0.7573 Rec 0.7702 F1 0.7637
+  Epoch 53 | Train Loss 0.2314 | Val Loss 0.4278 Acc 0.7916 Prec 0.7339 Rec 0.7745 F1 0.7536
+  Epoch 54 | Train Loss 0.2390 | Val Loss 0.4220 Acc 0.7898 Prec 0.7725 Rec 0.6936 F1 0.7309
+  Epoch 55 | Train Loss 0.2583 | Val Loss 0.4503 Acc 0.7828 Prec 0.7362 Rec 0.7362 F1 0.7362
+  Fold 4 best-val F1  (no TTA): 0.7689
+  Fold 4 best-val F1 (with TTA): 0.7650
+  Fold 4 best threshold: 0.27 (val F1 0.7558 vs default-0.5 F1 0.7650)
+
+
+==================================================
+  Fold 5 / 5
+==================================================
+  Epoch  1 | Train Loss 0.4835 | Val Loss 0.6250 Acc 0.6248 Prec 0.5275 Rec 0.8903 F1 0.6625
+  Epoch  2 | Train Loss 0.4578 | Val Loss 0.5615 Acc 0.6649 Prec 0.5843 Rec 0.6582 F1 0.6190
+  Epoch  3 | Train Loss 0.4540 | Val Loss 0.5472 Acc 0.6632 Prec 0.5671 Rec 0.7848 F1 0.6584
+  Epoch  4 | Train Loss 0.4523 | Val Loss 0.5507 Acc 0.6789 Prec 0.5801 Rec 0.8101 F1 0.6761
+  [Fold 5] Epoch 5: Unfreezing ['layer4']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch  5 | Train Loss 0.4476 | Val Loss 0.5423 Acc 0.7086 Prec 0.6101 Rec 0.8186 F1 0.6991
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch  6 | Train Loss 0.4492 | Val Loss 0.5621 Acc 0.6789 Prec 0.5681 Rec 0.9325 F1 0.7061
+  Epoch  7 | Train Loss 0.4339 | Val Loss 0.5485 Acc 0.7103 Prec 0.6060 Rec 0.8565 F1 0.7098
+  Epoch  8 | Train Loss 0.4305 | Val Loss 0.5705 Acc 0.6719 Prec 0.5633 Rec 0.9198 F1 0.6987
+  --> saved best model
+  Epoch  9 | Train Loss 0.4275 | Val Loss 0.5467 Acc 0.6876 Prec 0.5771 Rec 0.9156 F1 0.7080
+  --> saved best model
+  [Fold 5] Epoch 10: Unfreezing ['layer3']
+  [Warmup] Freshly-unfrozen LR = 2.00e-05 (step 1/2)
+  Epoch 10 | Train Loss 0.4281 | Val Loss 0.5383 Acc 0.7016 Prec 0.5897 Rec 0.9156 F1 0.7174
+  --> saved best model
+  [Warmup] Freshly-unfrozen LR = 4.00e-05 (step 2/2)
+  Epoch 11 | Train Loss 0.4204 | Val Loss 0.5435 Acc 0.6963 Prec 0.5849 Rec 0.9156 F1 0.7138
+  Epoch 12 | Train Loss 0.4128 | Val Loss 0.5709 Acc 0.6632 Prec 0.5545 Rec 0.9451 F1 0.6989
+  Epoch 13 | Train Loss 0.4150 | Val Loss 0.5287 Acc 0.7277 Prec 0.6147 Rec 0.9156 F1 0.7356
+  --> saved best model
+  Epoch 14 | Train Loss 0.4085 | Val Loss 0.5154 Acc 0.7487 Prec 0.6458 Rec 0.8692 F1 0.7410
+  --> saved best model
+  Epoch 15 | Train Loss 0.3993 | Val Loss 0.5055 Acc 0.7574 Prec 0.6612 Rec 0.8481 F1 0.7431
+  --> saved best model
+  Epoch 16 | Train Loss 0.3939 | Val Loss 0.4966 Acc 0.7382 Prec 0.6299 Rec 0.8903 F1 0.7378
+  --> saved best model
+  Epoch 17 | Train Loss 0.3827 | Val Loss 0.4744 Acc 0.7871 Prec 0.7237 Rec 0.7848 F1 0.7530
+  --> saved best model
+  Epoch 18 | Train Loss 0.3772 | Val Loss 0.4513 Acc 0.7801 Prec 0.6975 Rec 0.8270 F1 0.7568
+  --> saved best model
+  Epoch 19 | Train Loss 0.3773 | Val Loss 0.4932 Acc 0.7661 Prec 0.6575 Rec 0.9072 F1 0.7624
+  Epoch 20 | Train Loss 0.3702 | Val Loss 0.4490 Acc 0.7801 Prec 0.7176 Rec 0.7722 F1 0.7439
+  --> saved best model
+  Epoch 21 | Train Loss 0.3632 | Val Loss 0.4488 Acc 0.7906 Prec 0.7127 Rec 0.8270 F1 0.7656
+  --> saved best model
+  Epoch 22 | Train Loss 0.3509 | Val Loss 0.4728 Acc 0.7714 Prec 0.6656 Rec 0.8987 F1 0.7648
+  Epoch 23 | Train Loss 0.3619 | Val Loss 0.4494 Acc 0.7906 Prec 0.7468 Rec 0.7468 F1 0.7468
+  Epoch 24 | Train Loss 0.3496 | Val Loss 0.4368 Acc 0.7976 Prec 0.7373 Rec 0.7932 F1 0.7642
+  --> saved best model
+  Epoch 25 | Train Loss 0.3719 | Val Loss 0.4736 Acc 0.7836 Prec 0.7100 Rec 0.8059 F1 0.7549
+  Epoch 26 | Train Loss 0.3578 | Val Loss 0.4733 Acc 0.7679 Prec 0.6677 Rec 0.8734 F1 0.7569
+  Epoch 27 | Train Loss 0.3578 | Val Loss 0.4987 Acc 0.7539 Prec 0.6481 Rec 0.8861 F1 0.7487
+  Epoch 28 | Train Loss 0.3587 | Val Loss 0.4508 Acc 0.7784 Prec 0.6846 Rec 0.8608 F1 0.7626
+  Epoch 29 | Train Loss 0.3525 | Val Loss 0.4934 Acc 0.7574 Prec 0.6541 Rec 0.8776 F1 0.7495
+  Epoch 30 | Train Loss 0.3417 | Val Loss 0.4551 Acc 0.7923 Prec 0.7122 Rec 0.8354 F1 0.7689
+  Epoch 31 | Train Loss 0.3305 | Val Loss 0.4720 Acc 0.7661 Prec 0.6565 Rec 0.9114 F1 0.7633
+  Epoch 32 | Train Loss 0.3301 | Val Loss 0.4614 Acc 0.7958 Prec 0.6935 Rec 0.9072 F1 0.7861
+  Epoch 33 | Train Loss 0.3321 | Val Loss 0.4246 Acc 0.7958 Prec 0.7344 Rec 0.7932 F1 0.7627
+  --> saved best model
+  Epoch 34 | Train Loss 0.3087 | Val Loss 0.4360 Acc 0.7871 Prec 0.6873 Rec 0.8903 F1 0.7757
+  Epoch 35 | Train Loss 0.3114 | Val Loss 0.4203 Acc 0.8045 Prec 0.7306 Rec 0.8354 F1 0.7795
+  --> saved best model
+  Epoch 36 | Train Loss 0.3072 | Val Loss 0.4167 Acc 0.8133 Prec 0.7444 Rec 0.8354 F1 0.7873
+  --> saved best model
+  Epoch 37 | Train Loss 0.2949 | Val Loss 0.4363 Acc 0.8045 Prec 0.7451 Rec 0.8017 F1 0.7724
+  Epoch 38 | Train Loss 0.3050 | Val Loss 0.4182 Acc 0.8202 Prec 0.7965 Rec 0.7595 F1 0.7775
+  Epoch 39 | Train Loss 0.2926 | Val Loss 0.4461 Acc 0.7923 Prec 0.7007 Rec 0.8692 F1 0.7759
+  Epoch 40 | Train Loss 0.3108 | Val Loss 0.4435 Acc 0.8080 Prec 0.7260 Rec 0.8608 F1 0.7876
+  Epoch 41 | Train Loss 0.3195 | Val Loss 0.4310 Acc 0.8028 Prec 0.7403 Rec 0.8059 F1 0.7717
+  Epoch 42 | Train Loss 0.3175 | Val Loss 0.4240 Acc 0.8098 Prec 0.7462 Rec 0.8186 F1 0.7807
+  Epoch 43 | Train Loss 0.3082 | Val Loss 0.4085 Acc 0.8220 Prec 0.7948 Rec 0.7679 F1 0.7811
+  --> saved best model
+  Epoch 44 | Train Loss 0.2943 | Val Loss 0.4304 Acc 0.7923 Prec 0.7034 Rec 0.8608 F1 0.7742
+  Epoch 45 | Train Loss 0.2865 | Val Loss 0.4216 Acc 0.8150 Prec 0.7529 Rec 0.8228 F1 0.7863
+  Epoch 46 | Train Loss 0.2951 | Val Loss 0.4241 Acc 0.8168 Prec 0.7444 Rec 0.8481 F1 0.7929
+  Epoch 47 | Train Loss 0.2800 | Val Loss 0.4446 Acc 0.8045 Prec 0.7273 Rec 0.8439 F1 0.7812
+  Epoch 48 | Train Loss 0.2711 | Val Loss 0.4104 Acc 0.8325 Prec 0.8079 Rec 0.7806 F1 0.7940
+  Epoch 49 | Train Loss 0.2652 | Val Loss 0.4149 Acc 0.8185 Prec 0.7904 Rec 0.7637 F1 0.7768
+  Epoch 50 | Train Loss 0.2586 | Val Loss 0.4255 Acc 0.8272 Prec 0.7695 Rec 0.8312 F1 0.7992
+  Epoch 51 | Train Loss 0.2473 | Val Loss 0.4128 Acc 0.8133 Prec 0.7481 Rec 0.8270 F1 0.7856
+  Epoch 52 | Train Loss 0.2495 | Val Loss 0.4085 Acc 0.8202 Prec 0.7965 Rec 0.7595 F1 0.7775
+  Epoch 53 | Train Loss 0.2561 | Val Loss 0.4173 Acc 0.8185 Prec 0.7759 Rec 0.7890 F1 0.7824
+  Epoch 54 | Train Loss 0.2451 | Val Loss 0.4565 Acc 0.7818 Prec 0.6806 Rec 0.8903 F1 0.7715
+  Epoch 55 | Train Loss 0.2598 | Val Loss 0.4283 Acc 0.7993 Prec 0.7276 Rec 0.8228 F1 0.7723
+  Early stop at epoch 55 (best F1 0.7811 at epoch 43)
+  Fold 5 best-val F1  (no TTA): 0.7811
+  Fold 5 best-val F1 (with TTA): 0.7848
+  Fold 5 best threshold: 0.49 (val F1 0.7761 vs default-0.5 F1 0.7848)
+
+
+==================================================
+  Final cross-validation results (ResNet-50 v2)
+==================================================
+  Val F1 no-TTA  (mean ± std): 0.7610 ± 0.0135
+  Val F1 TTA     (mean ± std): 0.7671 ± 0.0149
+  Per-fold thresholds: ['0.35', '0.39', '0.52', '0.27', '0.49']
+==================================================

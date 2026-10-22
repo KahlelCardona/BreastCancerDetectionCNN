@@ -8,11 +8,11 @@ This plan builds on two checked-in ExecPlans: `specs/patient-grouped-cv-and-high
 
 ## Approval
 
-Status: Pending approval
+Status: Approved
 
-Approved by: pending
+Approved by: Repository owner (chat instruction: "approved"; no request to change the app's EfficientNet entry, so it stays as is)
 
-Date: pending
+Date: 2026-09-28
 
 Requested scope: Milestone 1 (measurements that confirm or lower the resolution), two sequential multi-hour training runs (Milestone 2), held-out evaluation (Milestone 3), and updating the web app's ResNet entry under the rule in the Decision Log (Milestone 4). The app's EfficientNet entry is changed only if the repository owner says so when approving; the default is to leave it.
 
@@ -26,15 +26,18 @@ After this plan, both models will have been trained and measured at 1024 by 576 
 
 ## Progress
 
-- [ ] Milestone 1: measure GPU memory, GPU time and CPU image-loading cost at 768 by 432 and 1024 by 576 for both models, and fix the final size and batch size by the rule in the Decision Log.
-- [ ] Milestone 2a: train EfficientNet-B0 at the chosen size (background run).
-- [ ] Milestone 2b: train ResNet-50 at the chosen size (background run, after 2a finishes).
-- [ ] Milestone 3: evaluate both on the held-out set (single best fold and five-fold ensemble).
+- [x] (2026-09-28) Milestone 1: measure GPU memory, GPU time and CPU image-loading cost at 768 by 432 and 1024 by 576 for both models, and fix the final size and batch size by the rule in the Decision Log. Result: 1024 by 576 at batch 8 for both.
+- [x] (2026-09-28 16:05) Milestone 2a: train EfficientNet-B0 at the chosen size. The run hung in fold 5 at epoch 33 and was salvaged per the Decision Log amendment. Validation TTA F1 by fold: 0.7329, 0.7243, 0.7221, 0.7582, 0.7598 (fold 5 recomputed; its no-TTA 0.7364 matches the log's epoch-32 value). Mean 0.7395, against 0.6787 at 512x288.
+- [x] (2026-09-29) Milestone 2b: train ResNet-50 at the chosen size (launched 2026-09-28 about 16:30 with 16.3 GB of 33.9 GB commit memory free). It finished cleanly: empty error log, five checkpoints, final results block. Fold 2 early-stopped at epoch 50. Validation TTA F1 by fold: 0.7277, 0.7323, 0.7478, 0.7137, 0.7695. Script summary: mean 0.7330 +/- 0.0136 without TTA and 0.7382 +/- 0.0191 with TTA (512x288: 0.7109). Per-fold thresholds 0.39, 0.46, 0.33, 0.38, 0.43. Under the serving rule (0.7382 > 0.7109), the app's ResNet entry switches to 1024x576. At 07:05 on 2026-09-29, during fold 4, free commit memory had fallen to 2.8 GB (training held 14.0 GB; Steam 1.4 GB, NVIDIA Overlay 0.7 GB), but the run did not stall.
+- [x] (2026-10-01) Milestone 3: evaluated both on the held-out set (single best fold = fold 5 for both, and five-fold ensemble), TTA, threshold 0.5, all `n=704`. ResNet-50 ensemble: acc 0.7443, prec 0.6579, rec 0.7246, F1 0.6897 (512x288: 0.7131 / 0.6164 / 0.7101 / 0.6599). ResNet-50 fold 5: 0.7330 / 0.6333 / 0.7572 / 0.6898. EfficientNet-B0 ensemble: 0.7173 / 0.6199 / 0.7210 / 0.6667 (512x288: 0.7088 / 0.6164 / 0.6812 / 0.6472). EfficientNet-B0 fold 5: 0.7159 / 0.6173 / 0.7246 / 0.6667. Resolution helped both models on held-out data; ResNet gained most (+0.031 acc, +0.030 F1).
 - [ ] Milestone 4: apply the serving rule to the app's ResNet entry, verify the app end to end, and write the comparison.
 
 ## Surprises & Discoveries
 
 - (2026-09-28, planning) The permission checker for shell commands returned transient errors while this plan was written, so the memory and speed probes planned below could not be run beforehand. They are Milestone 1 instead. The estimates in this plan are scaled from measured 512 by 288 numbers. ResNet-50 at batch 16 peaked at 1,526 MB with about 0.5 minutes of GPU time per epoch. EfficientNet-B0 at batch 8 peaked at 552 MB. Both runs took about 2.1 to 2.5 minutes per epoch in practice, limited by JPEG decoding. Scaling by four times the pixels suggests ResNet-50 at 1024 by 576 needs about 6 GB at batch 16 (too much, since about 5 GB is free) and about 3 GB at batch 8, while EfficientNet-B0 needs about 2.2 GB at batch 8.
+- (2026-09-28, M1) The probes ran after approval, with the desktop using 2,665 MiB of the 8,192 MiB. Each model was probed with its latest unfreeze stage trainable, using real SAM steps on random tensors. EfficientNet-B0 at 1024x576, batch 8: peak 1,967 MB, 0.8 GPU-minutes per epoch. At 768x432, batch 16: 2,242 MB, 0.4. ResNet-50 at 1024x576, batch 8: peak 2,620 MB, 1.7 GPU-minutes per epoch. At 768x432, batch 16: 2,914 MB, 1.0. The ResNet memory estimate in this plan was pessimistic, because the frozen early layers store no activations. CPU cost per image on one core: JPEG decode plus RGB convert 63 ms; light transform 41 ms at 512x288, 50 ms at 768x432 and 59 ms at 1024x576. Loading therefore grows about 17 percent (104 to 122 ms per image). Scaling the measured 2.1 min per epoch at 512x288 by that ratio gives about 2.5 min per epoch. Projected upper bounds are max(GPU, loading) times the epoch cap times 5 folds: EfficientNet about 2.5 x 35 x 5 = 7.3 h; ResNet about 2.6 x 55 x 5 = 11.9 h, since its GPU time plus validation approaches loading time. Both pass the rule (no out-of-memory error, peak at most 4,500 MB, at most 16 h), so 1024x576 at batch 8 is used for both.
+- (2026-09-28, M2) The EfficientNet run hung in fold 5. After epoch 32 (logged 15:53, best checkpoint saved), the DataLoader started worker processes for epoch 33 at about 15:55. One worker died while importing torch with `OSError: [WinError 1455] The paging file is too small for this operation to complete. Error loading ...\torch\lib\cufft64_11.dll`, and the main process then waited forever (0.00 CPU-seconds over a 20 s sample at 16:02; GPU utilisation 4 percent). Cause: Windows commit memory (RAM plus page file), not physical RAM. The commit limit was 40.0 GB with only 1.0 GB free, while 13.9 GB of RAM was free. The training process held about 5.7 GB of commit, each of the 7 live workers about 1.66 GB (they load the CUDA DLLs), and desktop applications (Chrome, Steam, Riot Client, Wallpaper Engine, VS Code and others) held most of the rest. The page file is system-managed and was allocated at 8,322 MB. At 16:05 the hung processes were stopped with the owner's agreement, which freed commit to 21.2 GB of 39.3 GB. The chained job then ended without starting ResNet, as designed.
+- (2026-09-28, M2) Both runs were launched as a single background job at 08:49:33. It runs EfficientNet first, then starts ResNet only if EfficientNet's error log is empty and its log contains the final results block. This removes the idle gap between runs without ever running two at once. The EfficientNet error log was empty through epoch 2, which was logged by 08:55:13, so an epoch takes about 2.7 minutes (projected at most about 7.9 h for EfficientNet). Fold 1: epoch 1 val F1 0.6012, epoch 2 0.6512.
 
 ## Decision Log
 
@@ -56,6 +59,13 @@ After this plan, both models will have been trained and measured at 1024 by 576 
 - Decision: run the two trainings one after the other, EfficientNet first, each as a background process managed by the coding agent's tooling.
   Rationale: the 8 GB GPU cannot hold both. EfficientNet goes first because it is the cheaper, lower-risk run, and its timing refines the ResNet projection. A closed terminal destroyed an earlier run, so no run is started in a manual window.
   Date/Author: 2026-09-28, drafted by agent.
+
+- Decision (amendment, approved by the repository owner in chat on 2026-09-28: "Salvage fold 5, then ResNet"): keep the hung EfficientNet run instead of restarting it. Folds 1 to 4 completed normally. Fold 5's checkpoint is the best (lowest validation loss) of epochs 1 to 32 instead of 1 to 35. Its missing fold-summary numbers (validation F1 without and with TTA, and tuned threshold) are computed afterwards by a scratchpad script, using the identical split (`StratifiedGroupKFold(5, shuffle=True, random_state=42)` on patient ids, fold index 4) and `get_val_transforms((1024, 576))`, via `evaluate.evaluate_model` and `evaluate.find_best_threshold`, as `EfficientNet.py` itself does. The Excel "Fold Summary" sheet and the fold-5 plot are left incomplete. This supersedes, for this run only, the Idempotence rule "never evaluate a partial run".
+  Rationale: fold 5 was 3 epochs from its cap. Early stopping (patience 10) could not have fired before epoch 35 either, so the only difference is whether epochs 33 to 35 would have found a lower validation loss. Restarting would cost about 7 hours to recover 3 epochs of one fold. The deviation is small, recorded, and applies to one of five ensemble members.
+  Date/Author: 2026-09-28, agent, per owner's choice.
+- Decision (amendment, owner's choice): before launching ResNet, the owner closes memory-heavy desktop applications, and the agent confirms free commit memory with `Get-CimInstance Win32_OperatingSystem` (FreeVirtualMemory) before launch. No code change (worker counts stay at 4).
+  Rationale: the failure was commit exhaustion caused mostly by other applications. ResNet's run is longer (up to about 12 h), so it is more exposed to the same failure.
+  Date/Author: 2026-09-28, agent, per owner's choice.
 
 ## Outcomes & Retrospective
 
@@ -117,6 +127,13 @@ Probes and evaluations are safe to rerun. A training run cannot resume. If one i
 ## Artifacts and Notes
 
 (Probe output, run timings and evaluation lines go here as they are produced.)
+
+Milestone 3 evaluation lines (2026-10-01):
+
+    [efficientnet] fold5 tta=True threshold=0.5 n=704 acc=0.7159 prec=0.6173 rec=0.7246 f1=0.6667
+    [efficientnet] 5-fold ensemble tta=True threshold=0.5 n=704 acc=0.7173 prec=0.6199 rec=0.7210 f1=0.6667
+    [resnet] fold5 tta=True threshold=0.5 n=704 acc=0.7330 prec=0.6333 rec=0.7572 f1=0.6898
+    [resnet] 5-fold ensemble tta=True threshold=0.5 n=704 acc=0.7443 prec=0.6579 rec=0.7246 f1=0.6897
 
 ## Interfaces and Dependencies
 

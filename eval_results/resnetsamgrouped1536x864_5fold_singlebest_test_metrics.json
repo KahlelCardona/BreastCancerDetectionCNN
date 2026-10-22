@@ -1,0 +1,13 @@
+{
+  "model": "resnet",
+  "checkpoints": [
+    "checkpoints_resnet_sam_grouped_1536x864_5fold\\fold5_best.pth"
+  ],
+  "tta": true,
+  "threshold": 0.5,
+  "n_samples": 704,
+  "accuracy": 0.6931818181818182,
+  "precision": 0.5857142857142857,
+  "recall": 0.7427536231884058,
+  "f1": 0.6549520766773163
+}
