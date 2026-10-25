@@ -169,9 +169,10 @@ def get_train_transforms():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-def get_val_transforms():
+def get_val_transforms(image_hw=None):
+    height, width = image_hw if image_hw else (Config.IMAGE_SIZE, Config.IMAGE_SIZE)
     return transforms.Compose([
-        transforms.Resize((Config.IMAGE_SIZE, Config.IMAGE_SIZE)),
+        transforms.Resize((height, width)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])

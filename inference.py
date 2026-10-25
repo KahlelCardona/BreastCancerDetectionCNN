@@ -24,7 +24,8 @@ def load_selected_models(device):
         else:
             loaded = load_model(name, checkpoint, device)
         threshold = float(entry.get("threshold", 0.5))
-        models[name] = (loaded, float(entry["accuracy"]), threshold)
+        image_hw = tuple(entry["image_hw"]) if "image_hw" in entry else None
+        models[name] = (loaded, float(entry["accuracy"]), threshold, image_hw)
     return models
 
 
@@ -50,16 +51,14 @@ def predict(image, models):
     resnet_first = models["resnet"][0]
     resnet_first_model = resnet_first[0] if isinstance(resnet_first, list) else resnet_first
     device = next(resnet_first_model.parameters()).device
-    image_tensor = get_val_transforms()(image)
-
-    resnet_models, resnet_weight, resnet_threshold = models["resnet"]
-    efficientnet_models, efficientnet_weight, efficientnet_threshold = models["efficientnet"]
+    resnet_models, resnet_weight, resnet_threshold, resnet_image_hw = models["resnet"]
+    efficientnet_models, efficientnet_weight, efficientnet_threshold, efficientnet_image_hw = models["efficientnet"]
 
     resnet_label, resnet_prob, resnet_conf = _predict_single(
-        resnet_models, image_tensor, device, resnet_threshold
+        resnet_models, get_val_transforms(resnet_image_hw)(image), device, resnet_threshold
     )
     eff_label, eff_prob, eff_conf = _predict_single(
-        efficientnet_models, image_tensor, device, efficientnet_threshold
+        efficientnet_models, get_val_transforms(efficientnet_image_hw)(image), device, efficientnet_threshold
     )
 
     blended_prob = (

@@ -1,4 +1,4 @@
 {
-  "resnet": {"checkpoint": "checkpoints_resnet/fold3_best.pth", "accuracy": 0.6534, "threshold": 0.45},
+  "resnet": {"checkpoint": ["checkpoints_resnet_sam_grouped_512x288_5fold/fold1_best.pth", "checkpoints_resnet_sam_grouped_512x288_5fold/fold2_best.pth", "checkpoints_resnet_sam_grouped_512x288_5fold/fold3_best.pth", "checkpoints_resnet_sam_grouped_512x288_5fold/fold4_best.pth", "checkpoints_resnet_sam_grouped_512x288_5fold/fold5_best.pth"], "accuracy": 0.7131, "threshold": 0.5, "image_hw": [512, 288]},
   "efficientnet": {"checkpoint": ["checkpoints_efficientnet/best_model_fold_1.pth", "checkpoints_efficientnet/best_model_fold_2.pth", "checkpoints_efficientnet/best_model_fold_3.pth", "checkpoints_efficientnet/best_model_fold_4.pth", "checkpoints_efficientnet/best_model_fold_5.pth"], "accuracy": 0.6179, "threshold": 0.302}
 }

@@ -1,142 +1,355 @@
+/* ------------------------------------------------------------------
+   Mammogram double read - clinical portal style
+   Reference point: patient/clinician portals like MyChart - calm blue and
+   white, plain sans-serif, white content panels on a soft grey-blue page,
+   no gradients, no illustration. The one dark element is the image viewer,
+   since mammograms are read on black.
+------------------------------------------------------------------- */
 :root {
-  --bg: #0d1117;
-  --panel: #161b22;
-  --border: #21262d;
-  --accent: #58a6ff;
-  --accent2: #3fb950;
-  --accent3: #f78166;
-  --text-hi: #e6edf3;
-  --text-mid: #8b949e;
+  --page-bg: #EEF2F6;
+  --panel: #FFFFFF;
+  --border: #D7DEE6;
+  --ink: #1B2733;
+  --muted: #5B6B7A;
+
+  --brand: #0B5CA8;       /* primary blue */
+  --brand-dark: #063E73;
+  --brand-tint: #E7F0FA;
+
+  --malignant: #B3261E;
+  --malignant-tint: #FBEAE9;
+  --benign: #146C43;
+  --benign-tint: #E7F5EE;
+
+  --warn-ink: #6B4D00;
+  --warn-bg: #FFF3D6;
+  --warn-border: #E8B430;
+
+  --focus: #0B5CA8;
+  --font: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
 }
 
-* { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
-  background: var(--bg);
-  color: var(--text-hi);
-  font-family: "Courier New", monospace;
   margin: 0;
-  padding: 0;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
-.header {
-  display: flex;
-  align-items: center;
+/* -------------------------------- Top bar ------------------------------ */
+.topbar {
   background: var(--panel);
   border-bottom: 1px solid var(--border);
-  padding: 14px 18px;
 }
-
-.accent-bar {
-  width: 4px;
-  align-self: stretch;
-  background: var(--accent);
-  margin-right: 16px;
-}
-
-.header h1 {
-  font-size: 16px;
-  margin: 0 16px 0 0;
-}
-
-.subtitle {
-  color: var(--text-mid);
-  font-size: 12px;
-}
-
-.content {
-  max-width: 720px;
-  margin: 32px auto;
-  padding: 0 20px;
-}
-
-.upload-form {
+.topbar-inner {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px;
   display: flex;
-  gap: 12px;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.brand {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--brand-dark);
+}
+.badge {
+  padding: 4px 10px;
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* --------------------------------- Page --------------------------------- */
+.page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  padding: 16px;
-  border-radius: 4px;
+  border-radius: 10px;
+  padding: 24px;
+}
+.panel-title {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.panel-intro {
+  margin: 0 0 20px;
+  max-width: 62ch;
+  color: var(--muted);
 }
 
-.upload-form input[type="file"] {
-  color: var(--text-hi);
-}
-
-.upload-form button {
-  background: var(--accent);
-  color: #ffffff;
-  border: none;
-  padding: 8px 18px;
-  font-family: inherit;
-  font-weight: bold;
-  border-radius: 4px;
+/* -------------------------------- Viewer -------------------------------- */
+.viewer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 200px;
+  max-height: 340px;
+  background: #0A0A0A;
+  color: #fff;
+  border-radius: 6px;
+  outline: 1px dashed rgba(255, 255, 255, 0.28);
+  outline-offset: -10px;
   cursor: pointer;
-}
-
-.error {
-  margin-top: 16px;
-  color: var(--accent3);
-  border: 1px solid var(--accent3);
-  padding: 12px;
-  border-radius: 4px;
-}
-
-.results {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 16px;
+  overflow: hidden;
   text-align: center;
 }
-
-.card.final {
-  border-color: var(--accent);
+.viewer.is-dragging { outline-color: #7FB4FF; }
+.viewer:has(:focus-visible) {
+  box-shadow: 0 0 0 3px var(--panel), 0 0 0 6px var(--focus);
 }
-
-.card h2 {
-  font-size: 13px;
-  color: var(--text-mid);
-  margin: 0 0 12px 0;
-  text-transform: uppercase;
+.viewer input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
-
-.label {
-  font-size: 22px;
-  font-weight: bold;
-  margin: 0 0 8px 0;
+.viewer-prompt {
+  max-width: 30ch;
+  padding: 24px;
+  font-size: 1.0625rem;
+  line-height: 1.4;
 }
-
-.label-benign { color: var(--accent2); }
-.label-malignant { color: var(--accent3); }
-
-.confidence {
-  margin: 0;
-  color: var(--text-hi);
-}
-
-.accuracy {
-  margin: 8px 0 0 0;
-  color: var(--text-mid);
-  font-size: 11px;
-}
-
-.heatmap {
+.viewer-link { text-decoration: underline; text-underline-offset: 3px; }
+.viewer-preview {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  border-radius: 8px;
-  margin-top: 12px;
+  height: 100%;
+  object-fit: contain;
+}
+.viewer-status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 4px 8px;
+  background: #000;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+.viewer-status:empty { display: none; }
+
+.viewer.is-busy { cursor: progress; }
+.viewer.is-busy::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: #7FB4FF;
+  animation: sweep 1.6s linear infinite;
+}
+@keyframes sweep { from { top: 0; } to { top: calc(100% - 2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .viewer.is-busy::after { animation: none; top: 50%; }
 }
 
-.disagreement-note {
-  margin-top: 16px;
-  color: var(--accent3);
-  font-size: 13px;
+/* ------------------------------ Submit row ------------------------------ */
+.submit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-top: 14px;
+}
+.file-name {
+  flex: 1 1 200px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+.submit-row button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 10px 24px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.submit-row button:hover { background: var(--brand-dark); }
+.submit-row button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.submit-row button:disabled { background: #93A3B2; cursor: progress; }
+
+.form-message {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  background: var(--malignant-tint);
+  color: var(--malignant);
+  border-radius: 6px;
+  border: 1px solid #EBC4C1;
+  max-width: 64ch;
+}
+
+/* -------------------------------- Readings ------------------------------ */
+.readings {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+.reading {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.reading-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.reading-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.reading-frame {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 380px;
+  margin-bottom: 14px;
+  background: #0A0A0A;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.reading-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.reading-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+.reading-stats dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.reading-stats dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------- Pills -------------------------------- */
+.pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.pill-lg { font-size: 1.25rem; padding: 6px 18px; }
+.pill-benign    { background: var(--benign-tint);    color: var(--benign); }
+.pill-malignant { background: var(--malignant-tint); color: var(--malignant); }
+
+.caption {
+  margin: 18px 0 0;
+  max-width: 64ch;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.alert {
+  margin: 20px 0 0;
+  padding: 12px 14px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+}
+
+/* -------------------------------- Combined ------------------------------- */
+.combined {
+  margin-top: 20px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--border);
+  background: #FAFBFC;
+}
+.combined-malignant { border-left-color: var(--malignant); }
+.combined-benign    { border-left-color: var(--benign); }
+.combined-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.combined-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.combined-confidence {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.combined-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* --------------------------------- Footer -------------------------------- */
+.footer {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* ------------------------------ Larger screens ---------------------------- */
+@media (min-width: 720px) {
+  .readings { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------------------------------- Phones -------------------------------- */
+@media (max-width: 480px) {
+  .panel { padding: 18px; }
+  .viewer { aspect-ratio: 1 / 1; max-height: 280px; }
+  .submit-row button { width: 100%; }
+  .pill-lg { font-size: 1.0625rem; }
 }

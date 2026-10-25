@@ -149,19 +149,28 @@ def predict_with_heatmaps(image, models):
     Returns the same dict as predict(), with result[name]["heatmap"] added for
     "resnet" and "efficientnet". If heatmap generation fails, the entry is
     None and the verdicts are still returned.
+
+    Each model gets its OWN input resolution (models[name][3], the image_hw
+    from selected_models.json) instead of one shared tensor: as of the
+    2026-09-28 checkpoints the ResNet ensemble trains on 512x288 while
+    EfficientNet stays at 224x224 (image_hw absent -> get_val_transforms
+    default). Computing the ResNet heatmap on the wrong resolution would
+    silently produce a mismatched map, the same failure mode the checkpoint
+    README warns about for predictions.
     """
     from DataSetAugmentation import get_val_transforms
     from inference import predict
 
     image = image.convert("RGB")
     result = predict(image, models)
-    tensor = get_val_transforms()(image)
 
     for name in ("resnet", "efficientnet"):
+        loaded_models, _weight, _threshold, image_hw = models[name]
+        tensor = get_val_transforms(image_hw)(image)
         class_idx = 1 if result[name]["label"] == "Malignant" else 0
         try:
             result[name]["heatmap"] = heatmap_overlay(
-                models[name][0], tensor, image, class_idx
+                loaded_models, tensor, image, class_idx
             )
         except Exception as exc:  # noqa: BLE001
             print(f"[gradcam] {name} heatmap failed: {exc!r}")
