@@ -1,3 +1,4 @@
+import argparse
 import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms
@@ -14,9 +15,10 @@ from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import WeightedRandomSampler
 
-from DataSetAugmentation import MammogramRawDataset, TransformDataset, Config, get_train_transforms, get_val_transforms
+from DataSetAugmentation import MammogramRawDataset, TransformDataset, Config, get_light_train_transforms, get_val_transforms
 from losses import mixup_data, build_hybrid_criterion
 from evaluate import evaluate_model, find_best_threshold
+from optimizers import SAM
 import training_log
 
 class EfficientNetConfig:
@@ -29,9 +31,9 @@ class EfficientNetConfig:
     OLD_UNFREEZE_LR = 2e-5         # blocks unfrozen at an earlier schedule epoch
     WEIGHT_DECAY = 1e-5
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    CHECKPOINT_DIR = Path("checkpoints_efficientnet")
-    PLOT_DIR = Path("plots_efficientnet")
-    IMAGE_SIZE = 224
+    CHECKPOINT_DIR = Path("checkpoints_efficientnet_sam_grouped_5fold")
+    PLOT_DIR = Path("plots_efficientnet_sam_grouped_5fold")
+    IMAGE_HW = (224, 224)          # (height, width) the images are resized to
     NUM_WORKERS = 8
     DATA_DIR = Path("data/raw")
     JPEG_DIR = DATA_DIR / "jpeg"
@@ -42,7 +44,7 @@ class EfficientNetConfig:
     LABEL_SMOOTHING     = 0.08
     FOCAL_GAMMA         = 1.5
     FOCAL_WEIGHT        = 0.4
-    MIXUP_ALPHA         = 0.2
+    MIXUP_ALPHA         = 0.0
     EARLY_STOP_PATIENCE = 10
     MIN_EPOCH_FOR_BEST  = 6        # 0-indexed epoch loop: skip checkpointing before this epoch
 
@@ -53,7 +55,15 @@ class EfficientNetConfig:
 
     TTA_ENABLED = True
 
+    # SAM (Sharpness-Aware Minimisation) optimizer - two forward/backward passes per step
+    USE_SAM = True
+    SAM_RHO = 0.07                 # SAM neighbourhood size
+
     UNFREEZE_SCHEDULE = {4: [8, 7], 10: [6], 16: [5]}
+
+    # Memory savers for high resolutions (off by default)
+    USE_AMP     = False            # bfloat16 autocast for forward passes
+    ACCUM_STEPS = 1                # micro-batches per optimizer update
 
 # -------------------- Model creation --------------------
 def create_efficientnet():
@@ -77,23 +87,58 @@ def create_efficientnet():
 def train_one_epoch(model, loader, criterion, optimizer, mixup_alpha):
     model.train()
     running_loss = 0.0
+
+    def forward_pass(images, labels, soft_labels):
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=EfficientNetConfig.USE_AMP):
+            outputs = model(images)
+        outputs = outputs.float()
+        if mixup_alpha > 0:
+            log_probs = nn.functional.log_softmax(outputs, dim=1)
+            return -(soft_labels * log_probs).sum(dim=1).mean()
+        return criterion(outputs, labels)
+
+    def accumulate(buffer):
+        # Sum gradients over the buffered micro-batches, each loss scaled so the
+        # total is the average over the effective batch; returns unscaled losses.
+        losses = []
+        for images, labels, soft_labels in buffer:
+            loss = forward_pass(images, labels, soft_labels)
+            (loss / len(buffer)).backward()
+            losses.append(loss)
+        return losses
+
+    def update(buffer):
+        if EfficientNetConfig.USE_SAM:
+            losses = accumulate(buffer)
+            nn.utils.clip_grad_norm_(model.parameters(), EfficientNetConfig.GRAD_CLIP_NORM)
+            optimizer.first_step(zero_grad=True)
+
+            accumulate(buffer)
+            nn.utils.clip_grad_norm_(model.parameters(), EfficientNetConfig.GRAD_CLIP_NORM)
+            optimizer.second_step(zero_grad=True)
+        else:
+            optimizer.zero_grad()
+            losses = accumulate(buffer)
+            nn.utils.clip_grad_norm_(model.parameters(), EfficientNetConfig.GRAD_CLIP_NORM)
+            optimizer.step()
+        return sum(l.item() * b[0].size(0) for l, b in zip(losses, buffer))
+
+    buffer = []
     for images, labels in loader:
         images, labels = images.to(EfficientNetConfig.DEVICE), labels.to(EfficientNetConfig.DEVICE)
-        optimizer.zero_grad()
 
+        soft_labels = None
         if mixup_alpha > 0:
-            mixed_images, soft_labels = mixup_data(images, labels, mixup_alpha)
-            outputs = model(mixed_images)
-            log_probs = nn.functional.log_softmax(outputs, dim=1)
-            loss = -(soft_labels * log_probs).sum(dim=1).mean()
-        else:
-            outputs = model(images)
-            loss = criterion(outputs, labels)
+            images, soft_labels = mixup_data(images, labels, mixup_alpha)
 
-        loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), EfficientNetConfig.GRAD_CLIP_NORM)
-        optimizer.step()
-        running_loss += loss.item() * images.size(0)
+        buffer.append((images, labels, soft_labels))
+        if len(buffer) == EfficientNetConfig.ACCUM_STEPS:
+            running_loss += update(buffer)
+            buffer = []
+
+    if buffer:
+        running_loss += update(buffer)
+
     epoch_loss = running_loss / len(loader.dataset)
     return epoch_loss
 
@@ -105,7 +150,9 @@ def validate(model, loader):
     with torch.no_grad():
         for images, labels in loader:
             images, labels = images.to(EfficientNetConfig.DEVICE), labels.to(EfficientNetConfig.DEVICE)
-            outputs = model(images)
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=EfficientNetConfig.USE_AMP):
+                outputs = model(images)
+            outputs = outputs.float()
             loss = criterion(outputs, labels)
             running_loss += loss.item() * images.size(0)
             _, preds = torch.max(outputs, 1)
@@ -158,12 +205,17 @@ def get_optimizer(model, current_epoch):
             param_groups.append({'params': old_params, 'lr': EfficientNetConfig.OLD_UNFREEZE_LR,
                                   'weight_decay': EfficientNetConfig.WEIGHT_DECAY})
 
+    if EfficientNetConfig.USE_SAM:
+        return SAM(param_groups, optim.AdamW, rho=EfficientNetConfig.SAM_RHO,
+                   lr=EfficientNetConfig.CLASSIFIER_LR,
+                   weight_decay=EfficientNetConfig.WEIGHT_DECAY)
     return optim.AdamW(param_groups)
 
 
 def get_scheduler(optimizer, epoch_offset=0):
+    base_opt = optimizer.base_optimizer if EfficientNetConfig.USE_SAM else optimizer
     return optim.lr_scheduler.CosineAnnealingWarmRestarts(
-        optimizer,
+        base_opt,
         T_0=EfficientNetConfig.T_0,
         T_mult=EfficientNetConfig.T_MULT,
         eta_min=EfficientNetConfig.ETA_MIN,
@@ -171,40 +223,59 @@ def get_scheduler(optimizer, epoch_offset=0):
     )
 
 
-# -------------------- 5-Fold Cross-Validation for EfficientNet --------------------
-def train_efficientnet_kfold():
+# -------------------- K-Fold Cross-Validation for EfficientNet --------------------
+def load_patch_backbone(model, patch_init_dir, fold):
+    """Start from this fold's patch-pretrained backbone (PatchPretrain.py)."""
+    state = torch.load(Path(patch_init_dir) / f"fold{fold+1}_backbone.pth",
+                       map_location=EfficientNetConfig.DEVICE)
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    missing_backbone = [k for k in missing if k.startswith("features.")]
+    if unexpected or missing_backbone:
+        raise RuntimeError(f"Patch backbone mismatch: unexpected={unexpected[:5]} "
+                           f"missing backbone keys={missing_backbone[:5]}")
+    print(f"  Loaded patch-pretrained backbone ({len(state)} tensors)")
+
+
+def train_efficientnet_kfold(n_folds=5, checkpoint_dir=None, plot_dir=None, log_name="efficientnet",
+                             patch_init_dir=None):
+    checkpoint_dir = checkpoint_dir or EfficientNetConfig.CHECKPOINT_DIR
+    plot_dir = plot_dir or EfficientNetConfig.PLOT_DIR
+
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
         print("cuDNN benchmark enabled.")
-    EfficientNetConfig.CHECKPOINT_DIR.mkdir(exist_ok=True)
-    EfficientNetConfig.PLOT_DIR.mkdir(exist_ok=True)
+    checkpoint_dir.mkdir(exist_ok=True)
+    plot_dir.mkdir(exist_ok=True)
     print(f"Using device: {EfficientNetConfig.DEVICE}")
 
-    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"], include_cropped_patches=True)
+    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
     labels = [label for _, label in raw_dataset.samples]
-    skf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    skf = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=42)
 
-    log_wb = training_log.create_workbook("efficientnet")
-    log_path = training_log.LOG_DIR / "efficientnet_training_log.xlsx"
+    log_wb = training_log.create_workbook(log_name)
+    log_path = training_log.LOG_DIR / f"{log_name}_training_log.xlsx"
 
     all_val_losses, all_val_accs, all_val_f1s = [], [], []
     fold_thresholds = []
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.groups)):
-        print(f"\n========== Fold {fold+1}/5 ==========")
+    for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.patient_ids)):
+        print(f"\n========== Fold {fold+1}/{n_folds} ==========")
 
         train_raw = Subset(raw_dataset, train_idx)
         val_raw   = Subset(raw_dataset, val_idx)
-        train_dataset = TransformDataset(train_raw, transform=get_train_transforms())
-        val_dataset   = TransformDataset(val_raw,   transform=get_val_transforms())
+        train_dataset = TransformDataset(train_raw, transform=get_light_train_transforms(EfficientNetConfig.IMAGE_HW))
+        val_dataset   = TransformDataset(val_raw,   transform=get_val_transforms(EfficientNetConfig.IMAGE_HW))
 
         train_loader = DataLoader(train_dataset, batch_size=EfficientNetConfig.BATCH_SIZE,
-                                  shuffle=True, num_workers=EfficientNetConfig.NUM_WORKERS)
+                                  shuffle=True, num_workers=EfficientNetConfig.NUM_WORKERS,
+                                  drop_last=EfficientNetConfig.ACCUM_STEPS > 1)
         val_loader = DataLoader(val_dataset, batch_size=EfficientNetConfig.BATCH_SIZE,
                                 shuffle=False, num_workers=EfficientNetConfig.NUM_WORKERS)
 
         # Model with initial freezing (only classifier trainable)
         model = create_efficientnet()
+        if patch_init_dir:
+            load_patch_backbone(model, patch_init_dir, fold)
         # Ensure backbone is frozen (already done in create_efficientnet, but double-check)
         for name, param in model.named_parameters():
             if 'classifier' not in name:
@@ -258,7 +329,7 @@ def train_efficientnet_kfold():
                 best_val_loss = val_loss
                 best_val_f1   = val_f1
                 patience      = 0
-                torch.save(model.state_dict(), EfficientNetConfig.CHECKPOINT_DIR / f"best_model_fold_{fold+1}.pth")
+                torch.save(model.state_dict(), checkpoint_dir / f"best_model_fold_{fold+1}.pth")
                 print("  --> saved best model")
             else:
                 patience += 1
@@ -280,12 +351,13 @@ def train_efficientnet_kfold():
 
         # ---- Re-evaluate best checkpoint with TTA (reuses evaluate.py's evaluate_model) ----
         model.load_state_dict(torch.load(
-            EfficientNetConfig.CHECKPOINT_DIR / f"best_model_fold_{fold+1}.pth",
+            checkpoint_dir / f"best_model_fold_{fold+1}.pth",
             map_location=EfficientNetConfig.DEVICE,
         ))
-        tta_metrics = evaluate_model(model, val_loader, EfficientNetConfig.DEVICE, use_tta=True)
+        tta_metrics = evaluate_model(model, val_loader, EfficientNetConfig.DEVICE, use_tta=True,
+                                     amp=EfficientNetConfig.USE_AMP)
         best_threshold, best_threshold_f1 = find_best_threshold(
-            model, val_loader, EfficientNetConfig.DEVICE, use_tta=True
+            model, val_loader, EfficientNetConfig.DEVICE, use_tta=True, amp=EfficientNetConfig.USE_AMP
         )
         fold_thresholds.append(best_threshold)
         print(f"  Fold {fold+1} best-val F1  (no TTA): {best_val_f1:.4f}")
@@ -303,7 +375,7 @@ def train_efficientnet_kfold():
         plt.xlabel('Epoch')
         plt.title(f'Fold {fold+1} EfficientNet Metrics')
         plt.legend()
-        plt.savefig(EfficientNetConfig.PLOT_DIR / f"fold_{fold+1}_metrics.png")
+        plt.savefig(plot_dir / f"fold_{fold+1}_metrics.png")
         plt.close()
 
     # Aggregate across folds
@@ -324,7 +396,7 @@ def train_efficientnet_kfold():
     plt.ylabel('Loss')
     plt.title('Mean Validation Loss Across Folds (EfficientNet)')
     plt.legend()
-    plt.savefig(EfficientNetConfig.PLOT_DIR / "mean_val_loss.png")
+    plt.savefig(plot_dir / "mean_val_loss.png")
     plt.close()
 
     plt.figure()
@@ -335,7 +407,7 @@ def train_efficientnet_kfold():
     plt.ylabel('Accuracy')
     plt.title('Mean Validation Accuracy Across Folds (EfficientNet)')
     plt.legend()
-    plt.savefig(EfficientNetConfig.PLOT_DIR / "mean_val_acc.png")
+    plt.savefig(plot_dir / "mean_val_acc.png")
     plt.close()
 
     plt.figure()
@@ -346,7 +418,7 @@ def train_efficientnet_kfold():
     plt.ylabel('F1 Score')
     plt.title('Mean Validation F1 Across Folds (EfficientNet)')
     plt.legend()
-    plt.savefig(EfficientNetConfig.PLOT_DIR / "mean_val_f1.png")
+    plt.savefig(plot_dir / "mean_val_f1.png")
     plt.close()
 
     print("\n========== Final Cross-Validation Results (EfficientNet) ==========")
@@ -357,4 +429,63 @@ def train_efficientnet_kfold():
 
 
 if __name__ == "__main__":
-    train_efficientnet_kfold()
+    parser = argparse.ArgumentParser(
+        description="Train EfficientNet-B0 with k-fold cross-validation."
+    )
+    parser.add_argument(
+        "--folds", type=int, default=None,
+        help="Number of patient-grouped cross-validation folds. Omit to run 5 folds. "
+             "Writes to checkpoints_efficientnet_sam_grouped_<N>fold/, "
+             "plots_efficientnet_sam_grouped_<N>fold/ and "
+             "training_logs/efficientnet_sam_grouped_<N>fold_training_log.xlsx. With a "
+             "non-default --image-hw, 'grouped' becomes 'grouped_<H>x<W>'. No form "
+             "overwrites the pre-existing directories or the live app's "
+             "checkpoints_efficientnet/."
+    )
+    parser.add_argument(
+        "--image-hw", type=int, nargs=2, default=[224, 224], metavar=("H", "W"),
+        help="Height and width images are resized to (default: 224 224)."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=16,
+        help="Training and validation (micro-)batch size (default: 16)."
+    )
+    parser.add_argument(
+        "--accum-steps", type=int, default=1,
+        help="Micro-batches whose gradients are summed per optimizer update; "
+             "effective batch = batch-size x accum-steps (default: 1)."
+    )
+    parser.add_argument(
+        "--amp", action="store_true",
+        help="Run forward passes in bfloat16 mixed precision."
+    )
+    parser.add_argument(
+        "--num-workers", type=int, default=EfficientNetConfig.NUM_WORKERS,
+        help=f"DataLoader worker processes (default: {EfficientNetConfig.NUM_WORKERS})."
+    )
+    parser.add_argument(
+        "--patch-init", default=None, metavar="DIR",
+        help="Start each fold from DIR/fold<k>_backbone.pth (PatchPretrain.py); "
+             "adds '_patchinit' to the output names."
+    )
+    args = parser.parse_args()
+    EfficientNetConfig.IMAGE_HW = tuple(args.image_hw)
+    EfficientNetConfig.BATCH_SIZE = args.batch_size
+    EfficientNetConfig.ACCUM_STEPS = args.accum_steps
+    EfficientNetConfig.USE_AMP = args.amp
+    EfficientNetConfig.NUM_WORKERS = args.num_workers
+    print(f"Config: image_hw={EfficientNetConfig.IMAGE_HW} micro_batch={EfficientNetConfig.BATCH_SIZE} "
+          f"accum_steps={EfficientNetConfig.ACCUM_STEPS} "
+          f"effective_batch={EfficientNetConfig.BATCH_SIZE * EfficientNetConfig.ACCUM_STEPS} "
+          f"amp={EfficientNetConfig.USE_AMP} workers={EfficientNetConfig.NUM_WORKERS}")
+    folds = args.folds if args.folds is not None else 5
+    marker = "grouped" if EfficientNetConfig.IMAGE_HW == (224, 224) else         f"grouped_{args.image_hw[0]}x{args.image_hw[1]}"
+    if args.patch_init:
+        marker += "_patchinit"
+    train_efficientnet_kfold(
+        n_folds=folds,
+        checkpoint_dir=Path(f"checkpoints_efficientnet_sam_{marker}_{folds}fold"),
+        plot_dir=Path(f"plots_efficientnet_sam_{marker}_{folds}fold"),
+        log_name=f"efficientnet_sam_{marker}_{folds}fold",
+        patch_init_dir=args.patch_init,
+    )

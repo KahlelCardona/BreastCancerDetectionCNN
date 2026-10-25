@@ -1,0 +1,18 @@
+{
+  "model": "efficientnet",
+  "checkpoints": [
+    "checkpoints_efficientnet_sam_grouped_1536x864_5fold\\best_model_fold_1.pth",
+    "checkpoints_efficientnet_sam_grouped_1536x864_5fold\\best_model_fold_2.pth",
+    "checkpoints_efficientnet_sam_grouped_1536x864_5fold\\best_model_fold_3.pth",
+    "checkpoints_efficientnet_sam_grouped_1536x864_5fold\\best_model_fold_4.pth",
+    "checkpoints_efficientnet_sam_grouped_1536x864_5fold\\best_model_fold_5.pth"
+  ],
+  "tta": true,
+  "amp": true,
+  "threshold": 0.5,
+  "n_samples": 704,
+  "accuracy": 0.7230113636363636,
+  "precision": 0.6302250803858521,
+  "recall": 0.7101449275362319,
+  "f1": 0.6678023850085179
+}

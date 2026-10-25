@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +14,7 @@ from pathlib import Path
 
 from DataSetAugmentation import (
     MammogramRawDataset, TransformDataset,
-    get_train_transforms, get_val_transforms,
+    get_light_train_transforms, get_val_transforms,
 )
 from evaluate import find_best_threshold
 import training_log
@@ -24,6 +26,7 @@ class CFG:
     MODEL_NAME      = "resnet50"
     BATCH_SIZE      = 16
     IMG_SIZE        = 224
+    IMAGE_HW        = (224, 224)
     EPOCHS          = 55
     NUM_WORKERS     = 4
     DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -46,7 +49,7 @@ class CFG:
 
     # Regularisation
     LABEL_SMOOTHING       = 0.08           # slightly reduced; focal loss handles hard negatives
-    MIXUP_ALPHA           = 0.2            # increased from 0.1 for more regularisation
+    MIXUP_ALPHA           = 0.0
     FOCAL_GAMMA           = 1.5            # focal loss concentration parameter
     FOCAL_WEIGHT          = 0.4            # blend: 0.6 * CE + 0.4 * Focal
     GRAD_CLIP_NORM        = 1.5            # tighter clipping
@@ -65,6 +68,10 @@ class CFG:
     # SAM optimizer
     USE_SAM               = True
     SAM_RHO               = 0.07          # SAM neighbourhood size
+
+    # Memory savers for high resolutions (off by default)
+    USE_AMP               = False          # bfloat16 autocast for forward passes
+    ACCUM_STEPS           = 1              # micro-batches per optimizer update
 
 
 # ------------------------------------------------------------------
@@ -323,39 +330,58 @@ def train_epoch(model, loader, criterion, optimizer, mixup_alpha):
     model.train()
     running_loss = 0.0
 
-    for imgs, labels in loader:
-        imgs, labels = imgs.to(CFG.DEVICE), labels.to(CFG.DEVICE)
-
-        if mixup_alpha > 0:
-            imgs, soft_labels = mixup_data(imgs, labels, mixup_alpha)
-
-        def forward_pass():
+    def forward_pass(imgs, labels, soft_labels):
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=CFG.USE_AMP):
             logits = model(imgs)
-            if mixup_alpha > 0:
-                lp = nn.functional.log_softmax(logits, dim=1)
-                return -(soft_labels * lp).sum(dim=1).mean()
-            return criterion(logits, labels)
+        logits = logits.float()
+        if mixup_alpha > 0:
+            lp = nn.functional.log_softmax(logits, dim=1)
+            return -(soft_labels * lp).sum(dim=1).mean()
+        return criterion(logits, labels)
 
+    def accumulate(buffer):
+        # Sum gradients over the buffered micro-batches, each loss scaled so the
+        # total is the average over the effective batch; returns unscaled losses.
+        losses = []
+        for imgs, labels, soft_labels in buffer:
+            loss = forward_pass(imgs, labels, soft_labels)
+            (loss / len(buffer)).backward()
+            losses.append(loss)
+        return losses
+
+    def update(buffer):
         if CFG.USE_SAM:
             # First forward-backward: find local max
-            loss = forward_pass()
-            loss.backward()
+            losses = accumulate(buffer)
             nn.utils.clip_grad_norm_(model.parameters(), CFG.GRAD_CLIP_NORM)
             optimizer.first_step(zero_grad=True)
 
             # Second forward-backward: actual update from local max
-            loss2 = forward_pass()
-            loss2.backward()
+            accumulate(buffer)
             nn.utils.clip_grad_norm_(model.parameters(), CFG.GRAD_CLIP_NORM)
             optimizer.second_step(zero_grad=True)
         else:
             optimizer.zero_grad()
-            loss = forward_pass()
-            loss.backward()
+            losses = accumulate(buffer)
             nn.utils.clip_grad_norm_(model.parameters(), CFG.GRAD_CLIP_NORM)
             optimizer.step()
+        return sum(l.item() * b[0].size(0) for l, b in zip(losses, buffer))
 
-        running_loss += loss.item() * imgs.size(0)
+    buffer = []
+    for imgs, labels in loader:
+        imgs, labels = imgs.to(CFG.DEVICE), labels.to(CFG.DEVICE)
+
+        soft_labels = None
+        if mixup_alpha > 0:
+            imgs, soft_labels = mixup_data(imgs, labels, mixup_alpha)
+
+        buffer.append((imgs, labels, soft_labels))
+        if len(buffer) == CFG.ACCUM_STEPS:
+            running_loss += update(buffer)
+            buffer = []
+
+    if buffer:
+        running_loss += update(buffer)
 
     return running_loss / len(loader.dataset)
 
@@ -373,14 +399,16 @@ def validate(model, loader, use_tta=False):
         for imgs, labels in loader:
             imgs, labels = imgs.to(CFG.DEVICE), labels.to(CFG.DEVICE)
 
-            if use_tta and CFG.TTA_ENABLED and CFG.TTA_FLIPS:
-                # Ensemble: original + hflip + vflip
-                logits_orig  = model(imgs)
-                logits_hflip = model(TF.hflip(imgs))
-                logits_vflip = model(TF.vflip(imgs))
-                logits = (logits_orig + logits_hflip + logits_vflip) / 3.0
-            else:
-                logits = model(imgs)
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=CFG.USE_AMP):
+                if use_tta and CFG.TTA_ENABLED and CFG.TTA_FLIPS:
+                    # Ensemble: original + hflip + vflip
+                    logits_orig  = model(imgs)
+                    logits_hflip = model(TF.hflip(imgs))
+                    logits_vflip = model(TF.vflip(imgs))
+                    logits = (logits_orig + logits_hflip + logits_vflip) / 3.0
+                else:
+                    logits = model(imgs)
+            logits = logits.float()
 
             loss = plain_criterion(logits, labels)
             running_loss += loss.item() * imgs.size(0)
@@ -403,13 +431,25 @@ def validate(model, loader, use_tta=False):
 WARMUP_EPOCHS_AFTER_UNFREEZE = 2   # ramp freshly-unfrozen LR over this many epochs
 
 
-def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_path):
-    train_ds = TransformDataset(Subset(raw_dataset, train_idx), get_train_transforms())
-    val_ds   = TransformDataset(Subset(raw_dataset, val_idx),   get_val_transforms())
+def load_patch_backbone(model, patch_init_dir, fold):
+    """Start from this fold's patch-pretrained backbone (PatchPretrain.py)."""
+    state = torch.load(Path(patch_init_dir) / f"fold{fold+1}_backbone.pth", map_location=CFG.DEVICE)
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    missing_backbone = [k for k in missing if k.startswith("layer")]
+    if unexpected or missing_backbone:
+        raise RuntimeError(f"Patch backbone mismatch: unexpected={unexpected[:5]} "
+                           f"missing backbone keys={missing_backbone[:5]}")
+    print(f"  [Fold {fold+1}] Loaded patch-pretrained backbone ({len(state)} tensors)")
+
+
+def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_path, patch_init_dir=None):
+    train_ds = TransformDataset(Subset(raw_dataset, train_idx), get_light_train_transforms(CFG.IMAGE_HW))
+    val_ds   = TransformDataset(Subset(raw_dataset, val_idx),   get_val_transforms(CFG.IMAGE_HW))
 
     train_loader = DataLoader(
         train_ds, batch_size=CFG.BATCH_SIZE, shuffle=True,
         num_workers=CFG.NUM_WORKERS, pin_memory=CFG.DEVICE.type == "cuda",
+        drop_last=CFG.ACCUM_STEPS > 1,   # avoid a 1-image micro-batch (breaks BatchNorm1d)
     )
     val_loader = DataLoader(
         val_ds, batch_size=CFG.BATCH_SIZE, shuffle=False,
@@ -417,6 +457,8 @@ def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_pa
     )
 
     model     = build_model()
+    if patch_init_dir:
+        load_patch_backbone(model, patch_init_dir, fold)
     y_train   = np.array(all_labels)[train_idx]
     class_w   = compute_class_weight("balanced", classes=np.array([0, 1]), y=y_train)
     w_tensor  = torch.tensor(class_w, dtype=torch.float).to(CFG.DEVICE)
@@ -509,7 +551,8 @@ def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_pa
                    map_location=CFG.DEVICE)
     )
     _, tta_acc, tta_prec, tta_rec, tta_f1 = validate(model, val_loader, use_tta=True)
-    best_threshold, best_threshold_f1 = find_best_threshold(model, val_loader, CFG.DEVICE, use_tta=True)
+    best_threshold, best_threshold_f1 = find_best_threshold(model, val_loader, CFG.DEVICE, use_tta=True,
+                                                            amp=CFG.USE_AMP)
     print(f"  Fold {fold+1} best-val F1  (no TTA): {best_f1:.4f}")
     print(f"  Fold {fold+1} best-val F1 (with TTA): {tta_f1:.4f}")
     print(f"  Fold {fold+1} best threshold: {best_threshold:.2f} "
@@ -521,25 +564,27 @@ def train_fold(fold, raw_dataset, train_idx, val_idx, all_labels, log_wb, log_pa
 # ------------------------------------------------------------------
 #  5‑fold cross‑validation
 # ------------------------------------------------------------------
-def main():
+def main(log_name="resnet", patch_init_dir=None):
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
+    CFG.CHECKPOINT_DIR.mkdir(exist_ok=True)
 
-    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"], include_cropped_patches=True)
+    raw_dataset = MammogramRawDataset(["mass_train", "calc_train"])
     labels      = [lbl for _, lbl in raw_dataset.samples]
     skf         = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 
-    log_wb   = training_log.create_workbook("resnet")
-    log_path = training_log.LOG_DIR / "resnet_training_log.xlsx"
+    log_wb   = training_log.create_workbook(log_name)
+    log_path = training_log.LOG_DIR / f"{log_name}_training_log.xlsx"
 
     fold_f1, fold_tta_f1, fold_threshold = [], [], []
     for fold, (train_idx, val_idx) in enumerate(
-        skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.groups)
+        skf.split(np.zeros(len(labels)), labels, groups=raw_dataset.patient_ids)
     ):
         print(f"\n{'='*50}")
         print(f"  Fold {fold+1} / 5")
         print(f"{'='*50}")
-        f1, tta_f1, threshold = train_fold(fold, raw_dataset, train_idx, val_idx, labels, log_wb, log_path)
+        f1, tta_f1, threshold = train_fold(fold, raw_dataset, train_idx, val_idx, labels, log_wb, log_path,
+                                           patch_init_dir)
         fold_f1.append(f1)
         fold_tta_f1.append(tta_f1)
         fold_threshold.append(threshold)
@@ -557,4 +602,50 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Train ResNet-50 with 5-fold patient-grouped cross-validation. "
+                    "Writes to checkpoints_resnet_sam_grouped_5fold/ and "
+                    "training_logs/resnet_sam_grouped_5fold_training_log.xlsx; with a "
+                    "non-default --image-hw, 'grouped' becomes 'grouped_<H>x<W>'. Never "
+                    "writes to checkpoints_resnet/."
+    )
+    parser.add_argument(
+        "--image-hw", type=int, nargs=2, default=[224, 224], metavar=("H", "W"),
+        help="Height and width images are resized to (default: 224 224)."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=16,
+        help="Training and validation (micro-)batch size (default: 16)."
+    )
+    parser.add_argument(
+        "--accum-steps", type=int, default=1,
+        help="Micro-batches whose gradients are summed per optimizer update; "
+             "effective batch = batch-size x accum-steps (default: 1)."
+    )
+    parser.add_argument(
+        "--amp", action="store_true",
+        help="Run forward passes in bfloat16 mixed precision."
+    )
+    parser.add_argument(
+        "--num-workers", type=int, default=CFG.NUM_WORKERS,
+        help=f"DataLoader worker processes (default: {CFG.NUM_WORKERS})."
+    )
+    parser.add_argument(
+        "--patch-init", default=None, metavar="DIR",
+        help="Start each fold from DIR/fold<k>_backbone.pth (PatchPretrain.py); "
+             "adds '_patchinit' to the output names."
+    )
+    args = parser.parse_args()
+    CFG.IMAGE_HW = tuple(args.image_hw)
+    CFG.BATCH_SIZE = args.batch_size
+    CFG.ACCUM_STEPS = args.accum_steps
+    CFG.USE_AMP = args.amp
+    CFG.NUM_WORKERS = args.num_workers
+    print(f"Config: image_hw={CFG.IMAGE_HW} micro_batch={CFG.BATCH_SIZE} "
+          f"accum_steps={CFG.ACCUM_STEPS} effective_batch={CFG.BATCH_SIZE * CFG.ACCUM_STEPS} "
+          f"amp={CFG.USE_AMP} workers={CFG.NUM_WORKERS}")
+    marker = "grouped" if CFG.IMAGE_HW == (224, 224) else f"grouped_{args.image_hw[0]}x{args.image_hw[1]}"
+    if args.patch_init:
+        marker += "_patchinit"
+    CFG.CHECKPOINT_DIR = Path(f"checkpoints_resnet_sam_{marker}_5fold")
+    main(log_name=f"resnet_sam_{marker}_5fold", patch_init_dir=args.patch_init)

@@ -15,3 +15,6 @@ venv/
 *.pth
 
 gradcam_selftest_*.png
+
+# Patch-pretraining patch sets (make_patches.py)
+data/patches_*/

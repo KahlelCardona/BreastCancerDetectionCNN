@@ -12,9 +12,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from DataSetAugmentation import MammogramRawDataset, TransformDataset, get_val_transforms
 
 
-def build_test_dataset():
+def build_test_dataset(size=None):
     raw = MammogramRawDataset(["mass_test", "calc_test"])
-    ds = TransformDataset(raw, get_val_transforms())
+    ds = TransformDataset(raw, get_val_transforms(size))
     return DataLoader(
         ds, batch_size=16, shuffle=False, num_workers=4,
         pin_memory=torch.cuda.is_available(),
@@ -50,12 +50,14 @@ def _batch_malignant_probs(model, imgs, use_tta):
         ) / 3.0
     else:
         logits = model(imgs)
-    return F.softmax(logits, dim=1)[:, 1]
+    return F.softmax(logits.float(), dim=1)[:, 1]
 
 
-def _collect_probs_and_labels(models, loader, device, use_tta):
+def _collect_probs_and_labels(models, loader, device, use_tta, amp=False):
+    # amp=True runs the forward passes in bfloat16; use it for models trained
+    # with --amp, since a model scores best in the precision it was trained in.
     all_probs, all_labels = [], []
-    with torch.no_grad():
+    with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=amp):
         for imgs, labels in loader:
             imgs = imgs.to(device)
             batch_probs = torch.stack(
@@ -77,21 +79,21 @@ def _metrics_from_probs(probs, labels, threshold):
     }
 
 
-def evaluate_model(model, loader, device, use_tta, threshold=0.5):
+def evaluate_model(model, loader, device, use_tta, threshold=0.5, amp=False):
     model.eval()
-    probs, labels = _collect_probs_and_labels([model], loader, device, use_tta)
+    probs, labels = _collect_probs_and_labels([model], loader, device, use_tta, amp)
     return _metrics_from_probs(probs, labels, threshold)
 
 
-def evaluate_ensemble(model_name, checkpoint_paths, loader, device, use_tta, threshold=0.5):
+def evaluate_ensemble(model_name, checkpoint_paths, loader, device, use_tta, threshold=0.5, amp=False):
     models = [load_model(model_name, p, device) for p in checkpoint_paths]
-    probs, labels = _collect_probs_and_labels(models, loader, device, use_tta)
+    probs, labels = _collect_probs_and_labels(models, loader, device, use_tta, amp)
     return _metrics_from_probs(probs, labels, threshold)
 
 
-def find_best_threshold(model, loader, device, use_tta):
+def find_best_threshold(model, loader, device, use_tta, amp=False):
     model.eval()
-    probs, labels = _collect_probs_and_labels([model], loader, device, use_tta)
+    probs, labels = _collect_probs_and_labels([model], loader, device, use_tta, amp)
 
     best_threshold, best_f1 = 0.5, f1_score(labels, probs > 0.5, zero_division=0)
     for t in np.arange(0.05, 0.96, 0.01):
@@ -112,16 +114,19 @@ def main():
     parser.add_argument("--tta", action="store_true")
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--image-hw", type=int, nargs=2, default=None, metavar=("H", "W"))
+    parser.add_argument("--amp", action="store_true",
+                        help="Run in bfloat16; use for checkpoints trained with --amp.")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint_paths = [Path(c) for c in args.checkpoint]
 
-    loader = build_test_dataset()
-    metrics = evaluate_ensemble(args.model, checkpoint_paths, loader, device, args.tta, args.threshold)
+    loader = build_test_dataset(tuple(args.image_hw) if args.image_hw else None)
+    metrics = evaluate_ensemble(args.model, checkpoint_paths, loader, device, args.tta, args.threshold, args.amp)
 
     print(
-        f"[{args.model}] checkpoints={[str(c) for c in checkpoint_paths]} tta={args.tta} "
+        f"[{args.model}] checkpoints={[str(c) for c in checkpoint_paths]} tta={args.tta} amp={args.amp} "
         f"threshold={args.threshold} n={metrics['n_samples']} acc={metrics['accuracy']:.4f} "
         f"prec={metrics['precision']:.4f} rec={metrics['recall']:.4f} f1={metrics['f1']:.4f}"
     )
@@ -140,6 +145,7 @@ def main():
         "model": args.model,
         "checkpoints": [str(c) for c in checkpoint_paths],
         "tta": args.tta,
+        "amp": args.amp,
         "threshold": args.threshold,
         **metrics,
     }

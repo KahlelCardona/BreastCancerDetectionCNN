@@ -1,0 +1,18 @@
+{
+  "model": "efficientnet",
+  "checkpoints": [
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_efficientnet_sam_grouped_1536x864_patchinit_5fold\\best_model_fold_1.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_efficientnet_sam_grouped_1536x864_patchinit_5fold\\best_model_fold_2.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_efficientnet_sam_grouped_1536x864_patchinit_5fold\\best_model_fold_3.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_efficientnet_sam_grouped_1536x864_patchinit_5fold\\best_model_fold_4.pth",
+    "A:\\Projects\\BreastCancerDetectionCNN\\checkpoints_efficientnet_sam_grouped_1536x864_patchinit_5fold\\best_model_fold_5.pth"
+  ],
+  "tta": true,
+  "amp": true,
+  "threshold": 0.5,
+  "n_samples": 704,
+  "accuracy": 0.7514204545454546,
+  "precision": 0.6613418530351438,
+  "recall": 0.75,
+  "f1": 0.7028862478777589
+}

@@ -1,0 +1,85 @@
+
+===== Fold 1/5 (efficientnet, 1536x864) =====
+  train patches normal/benign/malignant: 5664/1297/932
+  val patches   normal/benign/malignant: 1432/336/233; largest-class share 0.716
+  Epoch  1 | Train Loss 0.8908 | Val Loss 0.7074 3-class Acc 0.7301 Lesion F1 0.6925
+  Epoch  2 | Train Loss 0.6961 | Val Loss 0.6155 3-class Acc 0.7661 Lesion F1 0.7273
+  Epoch  3 | Train Loss 0.6013 | Val Loss 0.5983 3-class Acc 0.8196 Lesion F1 0.7131
+  Epoch  4 | Train Loss 0.5391 | Val Loss 0.5640 3-class Acc 0.8326 Lesion F1 0.7500
+  Epoch  5 | Train Loss 0.5066 | Val Loss 0.5948 3-class Acc 0.8261 Lesion F1 0.7230
+  Epoch  6 | Train Loss 0.4616 | Val Loss 0.5812 3-class Acc 0.8426 Lesion F1 0.7181
+  Epoch  7 | Train Loss 0.4195 | Val Loss 0.6261 3-class Acc 0.8421 Lesion F1 0.6761
+  Epoch  8 | Train Loss 0.4023 | Val Loss 0.6043 3-class Acc 0.8491 Lesion F1 0.7293
+  Epoch  9 | Train Loss 0.3768 | Val Loss 0.6371 3-class Acc 0.8436 Lesion F1 0.7133
+  Epoch 10 | Train Loss 0.3487 | Val Loss 0.6516 3-class Acc 0.8431 Lesion F1 0.7146
+  Epoch 11 | Train Loss 0.3340 | Val Loss 0.6563 3-class Acc 0.8411 Lesion F1 0.7102
+  Epoch 12 | Train Loss 0.3325 | Val Loss 0.6708 3-class Acc 0.8436 Lesion F1 0.7038
+Fold 1: saved checkpoints_patch_efficientnet_1536x864\fold1_backbone.pth (best epoch 4, val loss 0.56, 3-class acc 0.83, lesion F1 0.75)
+
+===== Fold 2/5 (efficientnet, 1536x864) =====
+  train patches normal/benign/malignant: 5692/1309/939
+  val patches   normal/benign/malignant: 1404/324/226; largest-class share 0.719
+  Epoch  1 | Train Loss 0.8786 | Val Loss 0.7093 3-class Acc 0.7364 Lesion F1 0.6398
+  Epoch  2 | Train Loss 0.6755 | Val Loss 0.6334 3-class Acc 0.7718 Lesion F1 0.6808
+  Epoch  3 | Train Loss 0.5814 | Val Loss 0.6259 3-class Acc 0.7728 Lesion F1 0.6867
+  Epoch  4 | Train Loss 0.5433 | Val Loss 0.6093 3-class Acc 0.7963 Lesion F1 0.7008
+  Epoch  5 | Train Loss 0.4878 | Val Loss 0.6361 3-class Acc 0.7707 Lesion F1 0.7002
+  Epoch  6 | Train Loss 0.4438 | Val Loss 0.6422 3-class Acc 0.7984 Lesion F1 0.7008
+  Epoch  7 | Train Loss 0.4131 | Val Loss 0.6386 3-class Acc 0.8025 Lesion F1 0.7094
+  Epoch  8 | Train Loss 0.3777 | Val Loss 0.6562 3-class Acc 0.8332 Lesion F1 0.7269
+  Epoch  9 | Train Loss 0.3551 | Val Loss 0.6731 3-class Acc 0.8101 Lesion F1 0.7110
+  Epoch 10 | Train Loss 0.3257 | Val Loss 0.6856 3-class Acc 0.8270 Lesion F1 0.7114
+  Epoch 11 | Train Loss 0.3237 | Val Loss 0.6779 3-class Acc 0.8234 Lesion F1 0.7098
+  Epoch 12 | Train Loss 0.3180 | Val Loss 0.6662 3-class Acc 0.8255 Lesion F1 0.7304
+Fold 2: saved checkpoints_patch_efficientnet_1536x864\fold2_backbone.pth (best epoch 4, val loss 0.61, 3-class acc 0.80, lesion F1 0.70)
+
+===== Fold 3/5 (efficientnet, 1536x864) =====
+  train patches normal/benign/malignant: 5691/1304/930
+  val patches   normal/benign/malignant: 1405/329/235; largest-class share 0.714
+  Epoch  1 | Train Loss 0.8875 | Val Loss 0.6928 3-class Acc 0.7654 Lesion F1 0.7087
+  Epoch  2 | Train Loss 0.6855 | Val Loss 0.6040 3-class Acc 0.8065 Lesion F1 0.7440
+  Epoch  3 | Train Loss 0.5964 | Val Loss 0.6011 3-class Acc 0.7989 Lesion F1 0.7266
+  Epoch  4 | Train Loss 0.5535 | Val Loss 0.5642 3-class Acc 0.8207 Lesion F1 0.7692
+  Epoch  5 | Train Loss 0.4937 | Val Loss 0.5491 3-class Acc 0.8405 Lesion F1 0.7621
+  Epoch  6 | Train Loss 0.4463 | Val Loss 0.6164 3-class Acc 0.8344 Lesion F1 0.7667
+  Epoch  7 | Train Loss 0.4292 | Val Loss 0.5819 3-class Acc 0.8319 Lesion F1 0.7680
+  Epoch  8 | Train Loss 0.3905 | Val Loss 0.5947 3-class Acc 0.8405 Lesion F1 0.7713
+  Epoch  9 | Train Loss 0.3558 | Val Loss 0.6028 3-class Acc 0.8497 Lesion F1 0.7714
+  Epoch 10 | Train Loss 0.3522 | Val Loss 0.6137 3-class Acc 0.8451 Lesion F1 0.7545
+  Epoch 11 | Train Loss 0.3405 | Val Loss 0.6063 3-class Acc 0.8471 Lesion F1 0.7668
+  Epoch 12 | Train Loss 0.3327 | Val Loss 0.6339 3-class Acc 0.8502 Lesion F1 0.7495
+Fold 3: saved checkpoints_patch_efficientnet_1536x864\fold3_backbone.pth (best epoch 5, val loss 0.55, 3-class acc 0.84, lesion F1 0.76)
+
+===== Fold 4/5 (efficientnet, 1536x864) =====
+  train patches normal/benign/malignant: 5667/1311/930
+  val patches   normal/benign/malignant: 1429/322/235; largest-class share 0.720
+  Epoch  1 | Train Loss 0.8695 | Val Loss 0.7211 3-class Acc 0.7497 Lesion F1 0.6680
+  Epoch  2 | Train Loss 0.6662 | Val Loss 0.6749 3-class Acc 0.7931 Lesion F1 0.6772
+  Epoch  3 | Train Loss 0.5930 | Val Loss 0.6522 3-class Acc 0.8041 Lesion F1 0.6857
+  Epoch  4 | Train Loss 0.5394 | Val Loss 0.6149 3-class Acc 0.8187 Lesion F1 0.6965
+  Epoch  5 | Train Loss 0.4861 | Val Loss 0.7066 3-class Acc 0.8001 Lesion F1 0.6463
+  Epoch  6 | Train Loss 0.4531 | Val Loss 0.6907 3-class Acc 0.8313 Lesion F1 0.6863
+  Epoch  7 | Train Loss 0.4112 | Val Loss 0.7079 3-class Acc 0.8333 Lesion F1 0.6846
+  Epoch  8 | Train Loss 0.3920 | Val Loss 0.7149 3-class Acc 0.8359 Lesion F1 0.6943
+  Epoch  9 | Train Loss 0.3682 | Val Loss 0.7427 3-class Acc 0.8197 Lesion F1 0.6756
+  Epoch 10 | Train Loss 0.3439 | Val Loss 0.7366 3-class Acc 0.8268 Lesion F1 0.6862
+  Epoch 11 | Train Loss 0.3319 | Val Loss 0.7449 3-class Acc 0.8243 Lesion F1 0.6858
+  Epoch 12 | Train Loss 0.3259 | Val Loss 0.7298 3-class Acc 0.8258 Lesion F1 0.6916
+Fold 4: saved checkpoints_patch_efficientnet_1536x864\fold4_backbone.pth (best epoch 4, val loss 0.61, 3-class acc 0.82, lesion F1 0.70)
+
+===== Fold 5/5 (efficientnet, 1536x864) =====
+  train patches normal/benign/malignant: 5670/1311/929
+  val patches   normal/benign/malignant: 1426/322/236; largest-class share 0.719
+  Epoch  1 | Train Loss 0.8868 | Val Loss 0.7398 3-class Acc 0.7324 Lesion F1 0.6601
+  Epoch  2 | Train Loss 0.6835 | Val Loss 0.6848 3-class Acc 0.7258 Lesion F1 0.6979
+  Epoch  3 | Train Loss 0.5914 | Val Loss 0.6455 3-class Acc 0.7818 Lesion F1 0.7043
+  Epoch  4 | Train Loss 0.5418 | Val Loss 0.6135 3-class Acc 0.8014 Lesion F1 0.7373
+  Epoch  5 | Train Loss 0.4939 | Val Loss 0.6203 3-class Acc 0.8236 Lesion F1 0.7171
+  Epoch  6 | Train Loss 0.4566 | Val Loss 0.6314 3-class Acc 0.8150 Lesion F1 0.7273
+  Epoch  7 | Train Loss 0.4182 | Val Loss 0.6712 3-class Acc 0.8306 Lesion F1 0.6980
+  Epoch  8 | Train Loss 0.3898 | Val Loss 0.6703 3-class Acc 0.8196 Lesion F1 0.6987
+  Epoch  9 | Train Loss 0.3686 | Val Loss 0.6941 3-class Acc 0.8337 Lesion F1 0.6941
+  Epoch 10 | Train Loss 0.3564 | Val Loss 0.6971 3-class Acc 0.8357 Lesion F1 0.6830
+  Epoch 11 | Train Loss 0.3354 | Val Loss 0.6981 3-class Acc 0.8513 Lesion F1 0.7146
+  Epoch 12 | Train Loss 0.3329 | Val Loss 0.6923 3-class Acc 0.8407 Lesion F1 0.7105
+Fold 5: saved checkpoints_patch_efficientnet_1536x864\fold5_backbone.pth (best epoch 4, val loss 0.61, 3-class acc 0.80, lesion F1 0.74)
