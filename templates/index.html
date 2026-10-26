@@ -2,53 +2,120 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Mammogram Classification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mammogram double read</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="header">
-    <div class="accent-bar"></div>
-    <h1>MAMMOGRAM CLASSIFICATION</h1>
-    <span class="subtitle">ResNet &middot; EfficientNet &middot; blended comparison</span>
-  </div>
 
-  <div class="content">
-    <form method="post" enctype="multipart/form-data" class="upload-form">
-      <input type="file" name="mammogram" accept=".jpg,.jpeg,.png">
-      <button type="submit">Analyze</button>
-    </form>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="brand">Mammogram Double Read</span>
+      <span class="badge">Research &amp; education tool</span>
+    </div>
+  </header>
 
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
+  <main class="page">
+
+    <section class="panel">
+      <h1 class="panel-title">New reading</h1>
+      <p class="panel-intro">
+        Upload a mammogram. Two independently trained models read it and you see
+        each one's verdict, where it looked, and a single combined answer.
+      </p>
+
+      <form id="upload-form" method="post" enctype="multipart/form-data" novalidate>
+        <label class="viewer" id="viewer" for="file-input">
+          <input type="file" id="file-input" name="mammogram" accept=".jpg,.jpeg,.png">
+          <img class="viewer-preview" id="viewer-preview" alt="" hidden>
+          <span class="viewer-prompt" id="viewer-prompt">
+            Drop a mammogram here, or <span class="viewer-link">choose a file</span>.
+            JPG or PNG.
+          </span>
+          <span class="viewer-status" id="viewer-status" role="status"></span>
+        </label>
+
+        <div class="submit-row">
+          <span class="file-name" id="file-name">No file chosen</span>
+          <button type="submit" id="submit-btn">Run both models</button>
+        </div>
+
+        <p class="form-message" id="form-message" role="alert" {% if not error %}hidden{% endif %}>{{ error }}</p>
+      </form>
+    </section>
 
     {% if result %}
-      <div class="results">
-        <div class="card">
-          <h2>ResNet</h2>
-          <p class="label label-{{ result.resnet.label|lower }}">{{ result.resnet.label }}</p>
-          <p class="confidence">{{ "%.1f"|format(result.resnet.confidence * 100) }}% confidence</p>
-          <p class="accuracy">model test accuracy: {{ "%.1f"|format(result.resnet.reported_accuracy * 100) }}%</p>
-        </div>
+    <section class="panel" id="results" aria-labelledby="results-title">
+      <h2 class="panel-title" id="results-title">Readings</h2>
 
-        <div class="card">
-          <h2>EfficientNet</h2>
-          <p class="label label-{{ result.efficientnet.label|lower }}">{{ result.efficientnet.label }}</p>
-          <p class="confidence">{{ "%.1f"|format(result.efficientnet.confidence * 100) }}% confidence</p>
-          <p class="accuracy">model test accuracy: {{ "%.1f"|format(result.efficientnet.reported_accuracy * 100) }}%</p>
-        </div>
+      <div class="readings">
+        <article class="reading">
+          <div class="reading-head">
+            <h3>ResNet-50</h3>
+            <span class="pill pill-{{ result.resnet.label|lower }}">{{ result.resnet.label }}</span>
+          </div>
+          {% if result.resnet.heatmap %}
+          <div class="reading-frame">
+            <img src="{{ result.resnet.heatmap }}"
+                 alt="Heatmap over the mammogram showing regions that influenced the ResNet-50 output">
+          </div>
+          {% endif %}
+          <dl class="reading-stats">
+            <div><dt>Confidence</dt><dd>{{ "%.1f"|format(result.resnet.confidence * 100) }}%</dd></div>
+            <div><dt>Test-set accuracy</dt><dd>{{ "%.1f"|format(result.resnet.reported_accuracy * 100) }}%</dd></div>
+          </dl>
+        </article>
 
-        <div class="card final">
-          <h2>Final Answer</h2>
-          <p class="label label-{{ result.final.label|lower }}">{{ result.final.label }}</p>
-          <p class="confidence">{{ "%.1f"|format(result.final.confidence * 100) }}% confidence</p>
-        </div>
+        <article class="reading">
+          <div class="reading-head">
+            <h3>EfficientNet-B0</h3>
+            <span class="pill pill-{{ result.efficientnet.label|lower }}">{{ result.efficientnet.label }}</span>
+          </div>
+          {% if result.efficientnet.heatmap %}
+          <div class="reading-frame">
+            <img src="{{ result.efficientnet.heatmap }}"
+                 alt="Heatmap over the mammogram showing regions that influenced the EfficientNet-B0 output">
+          </div>
+          {% endif %}
+          <dl class="reading-stats">
+            <div><dt>Confidence</dt><dd>{{ "%.1f"|format(result.efficientnet.confidence * 100) }}%</dd></div>
+            <div><dt>Test-set accuracy</dt><dd>{{ "%.1f"|format(result.efficientnet.reported_accuracy * 100) }}%</dd></div>
+          </dl>
+        </article>
       </div>
 
-      {% if not result.final.models_agreed %}
-        <div class="disagreement-note">Note: the two models disagreed on this image.</div>
+      {% if result.resnet.heatmap or result.efficientnet.heatmap %}
+      <p class="caption">
+        Heatmaps show which regions influenced each model's output. They are not lesion outlines.
+      </p>
       {% endif %}
+
+      {% if not result.final.models_agreed %}
+      <div class="alert">
+        <strong>Models disagree on this image.</strong> Treat the combined answer with extra caution.
+      </div>
+      {% endif %}
+
+      <div class="combined combined-{{ result.final.label|lower }}">
+        <span class="combined-label">Combined answer</span>
+        <div class="combined-row">
+          <span class="pill pill-lg pill-{{ result.final.label|lower }}">{{ result.final.label }}</span>
+          <span class="combined-confidence">{{ "%.1f"|format(result.final.confidence * 100) }}% confidence</span>
+        </div>
+        <p class="combined-note">Each model's vote is weighted by its accuracy on held-out test images.</p>
+      </div>
+    </section>
     {% endif %}
-  </div>
+
+  </main>
+
+  <footer class="footer">
+    Research and education tool. Not a diagnostic device.
+  </footer>
+
+  <script src="{{ url_for('static', filename='upload.js') }}"></script>
 </body>
 </html>

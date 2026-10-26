@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
 from PIL import Image
+from gradcam import predict_with_heatmaps 
 import torch
 
 from inference import load_selected_models, predict
@@ -32,7 +33,7 @@ def index():
             error="Could not read that file as an image.",
         )
 
-    result = predict(image, models)
+    result = predict_with_heatmaps(image, models)
     return render_template("index.html", result=result, error=None)
 
 

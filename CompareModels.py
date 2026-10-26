@@ -11,7 +11,6 @@ from pathlib import Path
 PLOT_DIRS = {
     "EfficientNet":  Path("plots_efficientnet"),
     "ResNet":        Path("plots_resnet"),
-    "Distillation":  Path("plots_distill_kfold"),
 }
 
 METRIC_FILES = {
@@ -167,7 +166,7 @@ class ModelComparisonUI:
 
         # right tag
         tag = tk.Label(
-            hdr, text="ResNet · EfficientNet · Distillation",
+            hdr, text="ResNet · EfficientNet",
             font=FONT_STATUS, bg=PANEL, fg=TEXT_MID,
             padx=18, pady=14,
         )
